@@ -45,12 +45,17 @@ export default function Dashboard() {
         currentUsage: 2.5,
         dailyUsage: 45.2,
         monthlyUsage: 1200.5,
+        estimatedBill: 15680.50,
+        peakHourUsage: 1.8,
+        offPeakUsage: 0.7,
+        carbonFootprint: 890.3,
         appliances: [
-            { name: 'Refrigerator', usage: 0.8 },
-            { name: 'Air Conditioner', usage: 1.2 },
-            { name: 'Lights', usage: 0.3 },
-            { name: 'TV', usage: 0.2 },
-            { name: 'Washing Machine', usage: 0.4 },
+            { name: 'Refrigerator', usage: 0.8, status: 'active', hours: 24 },
+            { name: 'Air Conditioner', usage: 1.2, status: 'active', hours: 8 },
+            { name: 'Lights', usage: 0.3, status: 'active', hours: 6 },
+            { name: 'TV', usage: 0.2, status: 'active', hours: 4 },
+            { name: 'Washing Machine', usage: 0.4, status: 'idle', hours: 2 },
+            { name: 'Water Heater', usage: 2.1, status: 'idle', hours: 1 },
         ],
         weeklyUsageTrend: [
             { day: 'Mon', consumption: 38 },
@@ -61,6 +66,30 @@ export default function Dashboard() {
             { day: 'Sat', consumption: 45 },
             { day: 'Sun', consumption: 47 },
         ],
+        monthlyTrend: [
+            { month: 'Jan', usage: 1150 },
+            { month: 'Feb', usage: 1100 },
+            { month: 'Mar', usage: 1220 },
+            { month: 'Apr', usage: 1180 },
+            { month: 'May', usage: 1250 },
+            { month: 'Jun', usage: 1200.5 },
+        ],
+        forecast: [
+            { period: 'Week 1', predicted: 310, confidence: 95 },
+            { period: 'Week 2', predicted: 325, confidence: 92 },
+            { period: 'Week 3', predicted: 318, confidence: 88 },
+            { period: 'Week 4', predicted: 330, confidence: 85 },
+        ],
+        hourlyUsage: [
+            { hour: '00:00', usage: 0.8 },
+            { hour: '03:00', usage: 0.7 },
+            { hour: '06:00', usage: 1.2 },
+            { hour: '09:00', usage: 1.8 },
+            { hour: '12:00', usage: 2.3 },
+            { hour: '15:00', usage: 2.1 },
+            { hour: '18:00', usage: 2.8 },
+            { hour: '21:00', usage: 2.4 },
+        ],
     };
 
     const weeklyUsageChartData = {
@@ -69,10 +98,11 @@ export default function Dashboard() {
             {
                 label: 'Consumption (kWh)',
                 data: energyData.weeklyUsageTrend.map((entry) => entry.consumption),
-                borderColor: '#4f46e5',
-                backgroundColor: 'rgba(99, 102, 241, 0.15)',
-                tension: 0.3,
+                borderColor: '#007AFF',
+                backgroundColor: 'rgba(0, 122, 255, 0.1)',
+                tension: 0.4,
                 fill: true,
+                borderWidth: 2,
             },
         ],
     };
@@ -83,8 +113,8 @@ export default function Dashboard() {
             {
                 label: 'Usage (kW)',
                 data: energyData.appliances.map((appliance) => appliance.usage),
-                backgroundColor: '#38bdf8',
-                borderRadius: 6,
+                backgroundColor: '#007AFF',
+                borderRadius: 8,
             },
         ],
     };
@@ -93,10 +123,45 @@ export default function Dashboard() {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-            legend: { position: 'top' as const },
+            legend: {
+                position: 'top' as const,
+                labels: {
+                    font: {
+                        family: '-apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif',
+                        size: 12,
+                    },
+                    color: '#1d1d1f',
+                    usePointStyle: true,
+                    padding: 15,
+                },
+            },
         },
         scales: {
-            y: { beginAtZero: true },
+            y: {
+                beginAtZero: true,
+                grid: {
+                    color: 'rgba(0, 0, 0, 0.05)',
+                },
+                ticks: {
+                    font: {
+                        family: '-apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif',
+                        size: 11,
+                    },
+                    color: '#86868b',
+                },
+            },
+            x: {
+                grid: {
+                    display: false,
+                },
+                ticks: {
+                    font: {
+                        family: '-apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif',
+                        size: 11,
+                    },
+                    color: '#86868b',
+                },
+            },
         },
     };
 
@@ -107,109 +172,300 @@ export default function Dashboard() {
             legend: { display: false },
         },
         scales: {
-            y: { beginAtZero: true },
+            y: {
+                beginAtZero: true,
+                grid: {
+                    color: 'rgba(0, 0, 0, 0.05)',
+                },
+                ticks: {
+                    font: {
+                        family: '-apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif',
+                        size: 11,
+                    },
+                    color: '#86868b',
+                },
+            },
+            x: {
+                grid: {
+                    display: false,
+                },
+                ticks: {
+                    font: {
+                        family: '-apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif',
+                        size: 11,
+                    },
+                    color: '#86868b',
+                },
+            },
+        },
+    };
+
+    const monthlyTrendChartData = {
+        labels: energyData.monthlyTrend.map((entry) => entry.month),
+        datasets: [
+            {
+                label: 'Monthly Usage (kWh)',
+                data: energyData.monthlyTrend.map((entry) => entry.usage),
+                borderColor: '#34C759',
+                backgroundColor: 'rgba(52, 199, 89, 0.1)',
+                tension: 0.4,
+                fill: true,
+                borderWidth: 2,
+            },
+        ],
+    };
+
+    const forecastChartData = {
+        labels: energyData.forecast.map((entry) => entry.period),
+        datasets: [
+            {
+                label: 'Predicted Usage (kWh)',
+                data: energyData.forecast.map((entry) => entry.predicted),
+                borderColor: '#FF9500',
+                backgroundColor: 'rgba(255, 149, 0, 0.1)',
+                borderDash: [5, 5],
+                tension: 0.4,
+                fill: true,
+                borderWidth: 2,
+            },
+        ],
+    };
+
+    const hourlyUsageChartData = {
+        labels: energyData.hourlyUsage.map((entry) => entry.hour),
+        datasets: [
+            {
+                label: 'Usage (kW)',
+                data: energyData.hourlyUsage.map((entry) => entry.usage),
+                backgroundColor: '#5856D6',
+                borderRadius: 8,
+            },
+        ],
+    };
+
+    const chartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'top' as const,
+                labels: {
+                    font: {
+                        family: '-apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif',
+                        size: 12,
+                    },
+                    color: '#1d1d1f',
+                    usePointStyle: true,
+                    padding: 15,
+                },
+            },
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                grid: {
+                    color: 'rgba(0, 0, 0, 0.05)',
+                },
+                ticks: {
+                    font: {
+                        family: '-apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif',
+                        size: 11,
+                    },
+                    color: '#86868b',
+                },
+            },
+            x: {
+                grid: {
+                    display: false,
+                },
+                ticks: {
+                    font: {
+                        family: '-apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif',
+                        size: 11,
+                    },
+                    color: '#86868b',
+                },
+            },
         },
     };
 
     return (
-        <div className="min-h-screen bg-gray-100">
-            <header className="bg-white shadow">
-                <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
-                    <h1 className="text-3xl font-bold text-gray-900">Energy Monitor Dashboard</h1>
+        <div className="min-h-screen bg-slate-50">
+            <header className="border-b border-slate-200 bg-white">
+                <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
+                    <h1 className="text-2xl font-semibold text-slate-900">Energy Monitor</h1>
                     <UserButton afterSignOutUrl="/" />
                 </div>
             </header>
-            <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-                <div className="px-4 py-6 sm:px-0 space-y-8">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="bg-white overflow-hidden shadow rounded-lg">
-                            <div className="p-5">
-                                <div className="flex items-center">
-                                    <div className="flex-shrink-0">
-                                        <svg className="h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <main className="mx-auto max-w-7xl py-8 px-6">
+                <div className="space-y-8">
+                    {/* Bill Payment Portal Section */}
+                    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <h3 className="text-lg font-semibold text-slate-900">Pay Your Electricity Bill</h3>
+                                <p className="mt-1 text-sm text-slate-600">Quick access to CEB and LECO payment portals</p>
+                            </div>
+                            <div className="flex flex-wrap gap-3">
+                                <a
+                                    href="https://payment.ceb.lk/instantpay"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-2 rounded-full bg-blue-500 px-6 py-2.5 text-sm font-medium text-white transition hover:bg-blue-600"
+                                >
+                                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                                    </svg>
+                                    Pay CEB Bill
+                                </a>
+                                <a
+                                    href="https://ipg.leco.lk/"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-2 rounded-full bg-green-500 px-6 py-2.5 text-sm font-medium text-white transition hover:bg-green-600"
+                                >
+                                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                                    </svg>
+                                    Pay LECO Bill
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Enhanced KPI Cards */}
+                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+                            <div className="flex items-center gap-4">
+                                <div className="flex-shrink-0">
+                                    <div className="rounded-full bg-blue-50 p-3">
+                                        <svg className="h-6 w-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                                         </svg>
                                     </div>
-                                    <div className="ml-5 w-0 flex-1">
-                                        <dl>
-                                            <dt className="text-sm font-medium text-gray-500 truncate">Current Usage</dt>
-                                            <dd className="text-lg font-medium text-gray-900">{energyData.currentUsage} kW</dd>
-                                        </dl>
-                                    </div>
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-sm font-medium text-slate-600">Current Usage</p>
+                                    <p className="mt-1 text-2xl font-semibold text-slate-900">{energyData.currentUsage} kW</p>
                                 </div>
                             </div>
                         </div>
-                        <div className="bg-white overflow-hidden shadow rounded-lg">
-                            <div className="p-5">
-                                <div className="flex items-center">
-                                    <div className="flex-shrink-0">
-                                        <svg className="h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+                            <div className="flex items-center gap-4">
+                                <div className="flex-shrink-0">
+                                    <div className="rounded-full bg-green-50 p-3">
+                                        <svg className="h-6 w-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                         </svg>
                                     </div>
-                                    <div className="ml-5 w-0 flex-1">
-                                        <dl>
-                                            <dt className="text-sm font-medium text-gray-500 truncate">Daily Usage</dt>
-                                            <dd className="text-lg font-medium text-gray-900">{energyData.dailyUsage} kWh</dd>
-                                        </dl>
-                                    </div>
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-sm font-medium text-slate-600">Daily Usage</p>
+                                    <p className="mt-1 text-2xl font-semibold text-slate-900">{energyData.dailyUsage} kWh</p>
                                 </div>
                             </div>
                         </div>
-                        <div className="bg-white overflow-hidden shadow rounded-lg">
-                            <div className="p-5">
-                                <div className="flex items-center">
-                                    <div className="flex-shrink-0">
-                                        <svg className="h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+                            <div className="flex items-center gap-4">
+                                <div className="flex-shrink-0">
+                                    <div className="rounded-full bg-amber-50 p-3">
+                                        <svg className="h-6 w-6 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                         </svg>
                                     </div>
-                                    <div className="ml-5 w-0 flex-1">
-                                        <dl>
-                                            <dt className="text-sm font-medium text-gray-500 truncate">Monthly Usage</dt>
-                                            <dd className="text-lg font-medium text-gray-900">{energyData.monthlyUsage} kWh</dd>
-                                        </dl>
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-sm font-medium text-slate-600">Estimated Bill</p>
+                                    <p className="mt-1 text-2xl font-semibold text-slate-900">Rs. {energyData.estimatedBill.toFixed(2)}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+                            <div className="flex items-center gap-4">
+                                <div className="flex-shrink-0">
+                                    <div className="rounded-full bg-teal-50 p-3">
+                                        <svg className="h-6 w-6 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
                                     </div>
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-sm font-medium text-slate-600">Carbon Footprint</p>
+                                    <p className="mt-1 text-2xl font-semibold text-slate-900">{energyData.carbonFootprint} kg</p>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div className="bg-white shadow rounded-lg p-6">
-                            <h3 className="text-lg font-semibold text-gray-900">Weekly Consumption Trend</h3>
-                            <p className="text-sm text-gray-500 mb-4">Track how your energy usage changes day by day.</p>
+                    {/* Hourly Usage & Forecast Section */}
+                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+                            <h3 className="text-lg font-semibold text-slate-900">24-Hour Usage Pattern</h3>
+                            <p className="mb-5 text-sm text-slate-600">Track your energy consumption throughout the day.</p>
+                            <div className="h-72">
+                                <Bar data={hourlyUsageChartData} options={chartOptions} />
+                            </div>
+                        </div>
+                        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+                            <h3 className="text-lg font-semibold text-slate-900">4-Week Usage Forecast</h3>
+                            <p className="mb-5 text-sm text-slate-600">AI-powered prediction of upcoming energy consumption.</p>
+                            <div className="h-72">
+                                <Line data={forecastChartData} options={chartOptions} />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Monthly Trend */}
+                    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+                        <h3 className="text-lg font-semibold text-slate-900">6-Month Usage Trend</h3>
+                        <p className="mb-5 text-sm text-slate-600">Long-term energy consumption patterns and trends.</p>
+                        <div className="h-80">
+                            <Line data={monthlyTrendChartData} options={chartOptions} />
+                        </div>
+                    </div>
+
+                    {/* Weekly & Appliance Charts */}
+                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+                            <h3 className="text-lg font-semibold text-slate-900">Weekly Consumption Trend</h3>
+                            <p className="mb-5 text-sm text-slate-600">Track how your energy usage changes day by day.</p>
                             <div className="h-72">
                                 <Line data={weeklyUsageChartData} options={weeklyUsageChartOptions} />
                             </div>
                         </div>
-                        <div className="bg-white shadow rounded-lg p-6">
-                            <h3 className="text-lg font-semibold text-gray-900">Appliance Breakdown</h3>
-                            <p className="text-sm text-gray-500 mb-4">Identify high-consuming appliances in your home.</p>
+                        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+                            <h3 className="text-lg font-semibold text-slate-900">Appliance Breakdown</h3>
+                            <p className="mb-5 text-sm text-slate-600">Identify high-consuming appliances in your home.</p>
                             <div className="h-72">
                                 <Bar data={applianceUsageChartData} options={applianceUsageChartOptions} />
                             </div>
                         </div>
                     </div>
 
-                    <div className="bg-white shadow overflow-hidden sm:rounded-md">
-                        <div className="px-4 py-5 sm:px-6">
-                            <h3 className="text-lg leading-6 font-medium text-gray-900">Appliance Usage Details</h3>
-                            <p className="mt-1 max-w-2xl text-sm text-gray-500">Current energy consumption by appliance.</p>
+                    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                        <div className="px-6 py-5">
+                            <h3 className="text-lg font-semibold text-slate-900">Appliance Usage Details</h3>
+                            <p className="mt-1 text-sm text-slate-600">Current energy consumption by appliance.</p>
                         </div>
-                        <ul className="divide-y divide-gray-200">
+                        <ul className="divide-y divide-slate-200">
                             {energyData.appliances.map((appliance, index) => (
-                                <li key={index} className="px-4 py-4 sm:px-6">
+                                <li key={index} className="px-6 py-4 transition hover:bg-slate-50">
                                     <div className="flex items-center justify-between">
-                                        <div className="text-sm font-medium text-gray-900">{appliance.name}</div>
-                                        <div className="text-sm text-gray-500">{appliance.usage} kW</div>
+                                        <div className="flex items-center gap-3">
+                                            <div className={`h-2 w-2 rounded-full ${appliance.status === 'active' ? 'bg-green-500' : 'bg-slate-400'}`} />
+                                            <div>
+                                                <div className="text-sm font-medium text-slate-900">{appliance.name}</div>
+                                                <div className="text-xs text-slate-600">{appliance.hours}h/day · {appliance.status}</div>
+                                            </div>
+                                        </div>
+                                        <div className="text-sm font-semibold text-blue-600">{appliance.usage} kW</div>
                                     </div>
                                 </li>
                             ))}
                         </ul>
                     </div>
                 </div>
-            </main>
-        </div>
+            </main >
+        </div >
     );
 }
