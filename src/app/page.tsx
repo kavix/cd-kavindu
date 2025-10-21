@@ -68,7 +68,7 @@ export default function Home() {
                       Illuminate your energy story.
                     </h1>
                     <p className="mt-6 text-xl text-slate-600 leading-relaxed">
-                      Monitor your home's energy with live insights and intelligent automation. Make confident decisions, reduce costs, and create a greener future.
+                      Monitor your home&apos;s energy with live insights and intelligent automation. Make confident decisions, reduce costs, and create a greener future.
                     </p>
                     <div className="mt-10 flex flex-wrap gap-4">
                       <Link
@@ -96,7 +96,7 @@ export default function Home() {
                   <div className="relative">
                     <div className="rounded-3xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-10 shadow-xl">
                       <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Live Overview</p>
-                      <h2 className="mt-4 text-2xl font-semibold text-slate-900">Today's energy pulse</h2>
+                      <h2 className="mt-4 text-2xl font-semibold text-slate-900">Today&apos;s energy pulse</h2>
                       <div className="mt-10 space-y-8">
                         <div className="flex items-center justify-between">
                           <span className="text-slate-600">Current load</span>
@@ -110,7 +110,7 @@ export default function Home() {
                       <div className="mt-10 rounded-2xl bg-blue-50 p-6">
                         <p className="text-sm text-slate-600">Alerts enabled</p>
                         <p className="mt-3 text-lg font-semibold text-slate-900">Peak surge protection active</p>
-                        <p className="mt-2 text-sm text-slate-600">We'll notify you if your load climbs above the configured threshold.</p>
+                        <p className="mt-2 text-sm text-slate-600">We&apos;ll notify you if your load climbs above the configured threshold.</p>
                       </div>
                     </div>
                   </div>
@@ -213,7 +213,7 @@ export default function Home() {
 
           <section id="cta" className="bg-slate-50 py-24">
             <div className="max-w-4xl mx-auto px-6 text-center">
-              <h2 className="text-4xl font-semibold text-slate-900">Ready to see your home's full energy potential?</h2>
+              <h2 className="text-4xl font-semibold text-slate-900">Ready to see your home&apos;s full energy potential?</h2>
               <p className="mt-6 text-xl text-slate-600">
                 Join thousands of households who trust Energy Monitor to reveal actionable insights, prevent costly surprises, and stay ahead of peak rates.
               </p>
