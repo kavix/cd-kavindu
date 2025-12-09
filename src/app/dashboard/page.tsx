@@ -6,7 +6,6 @@ import { useEffect } from 'react';
 import Link from 'next/link';
 import EnergyDashboard from '@/components/EnergyDashboard';
 import HealthCheck from '@/components/HealthCheck';
-import SensorDataForm from '@/components/SensorDataForm';
 import {
     Chart as ChartJS,
     CategoryScale,
@@ -324,8 +323,6 @@ export default function Dashboard() {
                 <div className="space-y-8">
                     <EnergyDashboard />
 
-                    <SensorDataForm />
-
                     {/* Bill Payment Portal Section */}
                     <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -373,7 +370,7 @@ export default function Dashboard() {
                                 </div>
                                 <div className="flex-1">
                                     <p className="text-sm font-medium text-slate-600">Current Usage</p>
-                                    <p className="mt-1 text-2xl font-semibold text-slate-900">{energyData.currentUsage} kW</p>
+                                    <p className="mt-1 text-2xl font-semibold text-slate-900">{energyData.currentUsage.toFixed(2)} kW</p>
                                 </div>
                             </div>
                         </div>
@@ -388,7 +385,7 @@ export default function Dashboard() {
                                 </div>
                                 <div className="flex-1">
                                     <p className="text-sm font-medium text-slate-600">Daily Usage</p>
-                                    <p className="mt-1 text-2xl font-semibold text-slate-900">{energyData.dailyUsage} kWh</p>
+                                    <p className="mt-1 text-2xl font-semibold text-slate-900">{energyData.dailyUsage.toFixed(2)} kWh</p>
                                 </div>
                             </div>
                         </div>
@@ -418,7 +415,7 @@ export default function Dashboard() {
                                 </div>
                                 <div className="flex-1">
                                     <p className="text-sm font-medium text-slate-600">Carbon Footprint</p>
-                                    <p className="mt-1 text-2xl font-semibold text-slate-900">{energyData.carbonFootprint} kg</p>
+                                    <p className="mt-1 text-2xl font-semibold text-slate-900">{energyData.carbonFootprint.toFixed(2)} kg</p>
                                 </div>
                             </div>
                         </div>
