@@ -2,8 +2,7 @@
 
 import useSWR from 'swr';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://3.108.238.200';
-
+// Use Next.js API routes to avoid CORS issues
 type HealthResponse = {
   status: string;
   time: string;
@@ -19,7 +18,7 @@ const fetcher = async (url: string) => {
 
 export default function HealthCheck() {
   const { data, error, isLoading } = useSWR<HealthResponse>(
-    `${API_BASE}/health`,
+    '/api/health',
     fetcher,
     {
       refreshInterval: 30000, // Check every 30 seconds

@@ -21,8 +21,7 @@ type PredictResponse = {
   units: Record<string, string>;
 };
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://3.108.238.200';
-
+// Use Next.js API routes to avoid CORS issues
 const fetcher = async (url: string) => {
   const res = await fetch(url);
   if (!res.ok) {
@@ -63,7 +62,7 @@ export default function EnergyDashboard() {
     error: currentError,
     isLoading: currentLoading,
     mutate: mutateCurrent,
-  } = useSWR<CurrentResponse>(`${API_BASE}/current`, fetcher, {
+  } = useSWR<CurrentResponse>('/api/current', fetcher, {
     refreshInterval: 2000,
   });
 
@@ -72,7 +71,7 @@ export default function EnergyDashboard() {
     error: predictionError,
     isLoading: predictionLoading,
     mutate: mutatePrediction,
-  } = useSWR<PredictResponse>(`${API_BASE}/predict`, fetcher, {
+  } = useSWR<PredictResponse>('/api/predict', fetcher, {
     refreshInterval: 10000,
   });
 

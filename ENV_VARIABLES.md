@@ -21,18 +21,23 @@ CLERK_SECRET_KEY=sk_test_...
 
 ## Optional Environment Variables
 
-### API Configuration
+### API Configuration (Server-Side Only)
 ```bash
 NEXT_PUBLIC_API_URL=http://3.108.238.200
+# or use the EC2 hostname:
+# NEXT_PUBLIC_API_URL=http://ec2-3-108-238-200.ap-south-1.compute.amazonaws.com
 ```
 
 **Default:** `http://3.108.238.200` (if not set)
 
+**Note:** This is now used server-side only in Next.js API routes to avoid CORS issues. The frontend components call Next.js API routes (`/api/*`) which then proxy requests to the backend.
+
 **Where used:**
-- `src/components/EnergyDashboard.tsx` - Fetches `/current` and `/predict` endpoints
-- `src/components/HealthCheck.tsx` - Checks `/health` endpoint
-- `src/components/SensorDataForm.tsx` - POSTs to `/send` endpoint
-- `src/app/history/page.tsx` - Fetches `/history` endpoint
+- `src/app/api/current/route.ts` - Proxies `/current` endpoint
+- `src/app/api/predict/route.ts` - Proxies `/predict` endpoint
+- `src/app/api/health/route.ts` - Proxies `/health` endpoint
+- `src/app/api/send/route.ts` - Proxies `/send` endpoint
+- `src/app/api/history/route.ts` - Proxies `/history` endpoint
 
 ## Setup Instructions
 
@@ -61,4 +66,5 @@ NEXT_PUBLIC_API_URL=http://3.108.238.200
 - Variables without `NEXT_PUBLIC_` are server-side only
 - Never commit `.env.local` or `.env` files to git (they're in `.gitignore`)
 - The API URL defaults to `http://3.108.238.200` if not specified
+- **CORS Solution:** All API calls now go through Next.js API routes (`/api/*`) which run server-side, eliminating CORS issues. The frontend never directly calls the backend API.
 

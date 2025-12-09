@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://3.108.238.200';
+// Use Next.js API routes to avoid CORS issues
 
 type SendResponse = {
   message: string;
@@ -49,7 +49,7 @@ export default function SensorDataForm() {
         throw new Error('All fields must be valid numbers');
       }
 
-      const res = await fetch(`${API_BASE}/send`, {
+      const res = await fetch('/api/send', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

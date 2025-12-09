@@ -16,7 +16,7 @@ type HistoryEntry = {
   time: string;
 };
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://3.108.238.200';
+// Use Next.js API routes to avoid CORS issues
 
 export default function HistoryPage() {
   const { isLoaded, userId } = useAuth();
@@ -48,8 +48,8 @@ export default function HistoryPage() {
         throw new Error('Please choose both start and end dates.');
       }
 
-      // Use date format YYYY-MM-DD as shown in API docs
-      const url = new URL('/history', API_BASE);
+      // Use Next.js API route to avoid CORS issues
+      const url = new URL('/api/history', window.location.origin);
       url.searchParams.set('start', startDate);
       url.searchParams.set('end', endDate);
       url.searchParams.set('limit', '100');
