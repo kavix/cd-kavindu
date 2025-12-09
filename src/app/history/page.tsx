@@ -1,6 +1,11 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import Link from 'next/link';
+import { useAuth, UserButton } from '@clerk/nextjs';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+import HealthCheck from '@/components/HealthCheck';
 
 type HistoryEntry = {
   volt: number;
@@ -14,6 +19,8 @@ type HistoryEntry = {
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://3.108.238.200';
 
 export default function HistoryPage() {
+  const { isLoaded, userId } = useAuth();
+  const router = useRouter();
   const [startDate, setStartDate] = useState(() => {
     const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
     return yesterday.toISOString().slice(0, 10);
@@ -22,6 +29,16 @@ export default function HistoryPage() {
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isLoaded && !userId) {
+      router.push('/login');
+    }
+  }, [isLoaded, userId, router]);
+
+  if (!isLoaded || !userId) {
+    return <div>Loading...</div>;
+  }
 
   const handleFetch = async () => {
     setError(null);
@@ -63,8 +80,34 @@ export default function HistoryPage() {
   );
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-10">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="min-h-screen bg-slate-50">
+      <header className="border-b border-slate-200 bg-white">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
+          <div className="flex items-center gap-6">
+            <h1 className="text-2xl font-semibold text-slate-900">Energy Monitor</h1>
+            <nav className="hidden md:flex items-center gap-4">
+              <Link
+                href="/dashboard"
+                className="text-sm font-medium text-slate-700 transition hover:text-slate-900"
+              >
+                Dashboard
+              </Link>
+              <Link
+                href="/history"
+                className="text-sm font-medium text-slate-900 transition hover:text-slate-900"
+              >
+                History
+              </Link>
+            </nav>
+          </div>
+          <div className="flex items-center gap-4">
+            <HealthCheck />
+            <UserButton afterSignOutUrl="/" />
+          </div>
+        </div>
+      </header>
+      <div className="mx-auto max-w-6xl px-6 py-10">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">History</p>
           <h1 className="text-3xl font-semibold text-slate-900">Sensor logs</h1>
@@ -159,6 +202,7 @@ export default function HistoryPage() {
             </tbody>
           </table>
         </div>
+      </div>
       </div>
     </div>
   );

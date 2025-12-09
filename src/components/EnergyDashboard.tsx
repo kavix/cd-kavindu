@@ -101,7 +101,29 @@ export default function EnergyDashboard() {
             <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">Real-time</p>
             <h2 className="text-2xl font-semibold text-slate-900">Live sensor stream</h2>
           </div>
-          <p className="text-sm text-slate-500">{currentStatus}</p>
+          <div className="flex items-center gap-3">
+            <p className="text-sm text-slate-500">{currentStatus}</p>
+            <button
+              onClick={handleRefresh}
+              disabled={currentLoading || predictionLoading}
+              className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              title="Refresh data"
+            >
+              <svg
+                className={`h-4 w-4 ${currentLoading || predictionLoading ? 'animate-spin' : ''}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
+              </svg>
+            </button>
+          </div>
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard label="Voltage" value={formatNumber(current?.volt)} unit="V" />
