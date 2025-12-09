@@ -3,6 +3,7 @@
 import { useAuth, UserButton } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import EnergyDashboard from '@/components/EnergyDashboard';
 import {
     Chart as ChartJS,
     CategoryScale,
@@ -299,6 +300,8 @@ export default function Dashboard() {
             </header>
             <main className="mx-auto max-w-7xl py-8 px-6">
                 <div className="space-y-8">
+                    <EnergyDashboard />
+
                     {/* Bill Payment Portal Section */}
                     <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

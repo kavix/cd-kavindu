@@ -5,8 +5,7 @@ export default function LoginPage() {
         <div className="min-h-screen flex items-center justify-center bg-gray-50">
             <div className="max-w-md w-full">
                 <SignIn
-                    path="/login"
-                    routing="path"
+                    routing="hash"
                     signUpUrl="/sign-up"
                     redirectUrl="/dashboard"
                 />
