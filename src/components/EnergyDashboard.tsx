@@ -30,7 +30,7 @@ const fetcher = async (url: string) => {
   return res.json();
 };
 
-const formatNumber = (value?: number, decimals = 2) => {
+const formatNumber = (value?: number, decimals = 3) => {
   if (typeof value !== 'number' || Number.isNaN(value)) return '—';
   return value.toLocaleString(undefined, {
     minimumFractionDigits: decimals,

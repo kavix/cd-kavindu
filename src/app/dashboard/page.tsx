@@ -370,7 +370,7 @@ export default function Dashboard() {
                                 </div>
                                 <div className="flex-1">
                                     <p className="text-sm font-medium text-slate-600">Current Usage</p>
-                                    <p className="mt-1 text-2xl font-semibold text-slate-900">{energyData.currentUsage.toFixed(2)} kW</p>
+                                    <p className="mt-1 text-2xl font-semibold text-slate-900">{energyData.currentUsage.toFixed(3)} kW</p>
                                 </div>
                             </div>
                         </div>
@@ -385,7 +385,7 @@ export default function Dashboard() {
                                 </div>
                                 <div className="flex-1">
                                     <p className="text-sm font-medium text-slate-600">Daily Usage</p>
-                                    <p className="mt-1 text-2xl font-semibold text-slate-900">{energyData.dailyUsage.toFixed(2)} kWh</p>
+                                    <p className="mt-1 text-2xl font-semibold text-slate-900">{energyData.dailyUsage.toFixed(3)} kWh</p>
                                 </div>
                             </div>
                         </div>
@@ -400,7 +400,7 @@ export default function Dashboard() {
                                 </div>
                                 <div className="flex-1">
                                     <p className="text-sm font-medium text-slate-600">Estimated Bill</p>
-                                    <p className="mt-1 text-2xl font-semibold text-slate-900">Rs. {energyData.estimatedBill.toFixed(2)}</p>
+                                    <p className="mt-1 text-2xl font-semibold text-slate-900">Rs. {energyData.estimatedBill.toFixed(3)}</p>
                                 </div>
                             </div>
                         </div>
@@ -415,7 +415,7 @@ export default function Dashboard() {
                                 </div>
                                 <div className="flex-1">
                                     <p className="text-sm font-medium text-slate-600">Carbon Footprint</p>
-                                    <p className="mt-1 text-2xl font-semibold text-slate-900">{energyData.carbonFootprint.toFixed(2)} kg</p>
+                                    <p className="mt-1 text-2xl font-semibold text-slate-900">{energyData.carbonFootprint.toFixed(3)} kg</p>
                                 </div>
                             </div>
                         </div>
