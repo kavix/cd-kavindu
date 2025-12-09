@@ -30,15 +30,23 @@ export default function HistoryPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // All hooks must be called before any conditional returns
+  const rows = useMemo(
+    () =>
+      entries.map((item) => ({
+        time: new Date(item.time).toLocaleString(),
+        volt: item.volt,
+        amps: item.amps,
+        watt: item.watt,
+      })),
+    [entries],
+  );
+
   useEffect(() => {
     if (isLoaded && !userId) {
       router.push('/login');
     }
   }, [isLoaded, userId, router]);
-
-  if (!isLoaded || !userId) {
-    return <div>Loading...</div>;
-  }
 
   const handleFetch = async () => {
     setError(null);
@@ -68,17 +76,7 @@ export default function HistoryPage() {
     }
   };
 
-  const rows = useMemo(
-    () =>
-      entries.map((item) => ({
-        time: new Date(item.time).toLocaleString(),
-        volt: item.volt,
-        amps: item.amps,
-        watt: item.watt,
-      })),
-    [entries],
-  );
-
+  // Always render the same structure to maintain consistent hook order
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="border-b border-slate-200 bg-white">
@@ -106,6 +104,11 @@ export default function HistoryPage() {
           </div>
         </div>
       </header>
+      {!isLoaded || !userId ? (
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-slate-600">Loading...</div>
+        </div>
+      ) : (
       <div className="mx-auto max-w-6xl px-6 py-10">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -204,6 +207,7 @@ export default function HistoryPage() {
         </div>
       </div>
       </div>
+      )}
     </div>
   );
 }
