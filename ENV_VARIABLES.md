@@ -39,6 +39,16 @@ NEXT_PUBLIC_API_URL=http://3.108.238.200
 - `src/app/api/send/route.ts` - Proxies `/send` endpoint
 - `src/app/api/history/route.ts` - Proxies `/history` endpoint
 
+### MongoDB Configuration
+```bash
+MONGODB_URI=mongodb+srv://blacky:2419624196@voltura.vl2m5kl.mongodb.net/volData?retryWrites=true&w=majority
+MONGODB_DB=voltura
+MONGODB_COLLECTION=volData
+```
+
+**Where used:**
+- `src/app/api/history/mongo/route.ts` - Direct MongoDB queries
+
 ## Setup Instructions
 
 1. Create a `.env.local` file in the root directory:

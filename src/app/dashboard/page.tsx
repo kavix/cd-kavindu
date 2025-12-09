@@ -24,8 +24,8 @@ type HistoryEntry = {
     volt: number;
     amps: number;
     watt: number;
-    temperature?: number;
-    humidity?: number;
+    temperature: number;
+    humidity: number;
     time: string;
 };
 
@@ -50,31 +50,14 @@ export default function Dashboard() {
     const { isLoaded, userId } = useAuth();
     const router = useRouter();
 
-    // Fetch historical data for graphs
-    const endDate = useMemo(() => new Date().toISOString().slice(0, 10), []);
-    const startDate = useMemo(() => {
-        const date = new Date();
-        date.setDate(date.getDate() - 7); // Last 7 days
-        return date.toISOString().slice(0, 10);
-    }, []);
-
+    // Fetch historical data for graphs with specific date range
     const { data: historyData, error: historyError } = useSWR<HistoryEntry[]>(
-        `/api/history?start=${startDate}&end=${endDate}&limit=1000`,
+        `/api/history/mongo?start=2025-12-02&end=2025-12-10&limit=10000`,
         fetcher,
         { refreshInterval: 60000 } // Refresh every minute
     );
 
-    useEffect(() => {
-        if (isLoaded && !userId) {
-            router.push('/login');
-        }
-    }, [isLoaded, userId, router]);
-
-    if (!isLoaded || !userId) {
-        return <div>Loading...</div>;
-    }
-
-    // Process historical data for graphs
+    // Process historical data for graphs - MUST be before conditional returns
     const processedData = useMemo(() => {
         if (!historyData || historyData.length === 0) {
             return {
@@ -83,6 +66,10 @@ export default function Dashboard() {
                 currentUsage: 2.5,
                 dailyTotal: 0,
                 monthlyTotal: 0,
+                voltData: [],
+                ampsData: [],
+                tempData: [],
+                humidityData: [],
             };
         }
 
@@ -90,12 +77,18 @@ export default function Dashboard() {
         const hourlyMap = new Map<string, { total: number; count: number }>();
         const dailyMap = new Map<string, { total: number; count: number }>();
 
+        // Time series data for other metrics
+        const voltData: { time: string; value: number }[] = [];
+        const ampsData: { time: string; value: number }[] = [];
+        const tempData: { time: string; value: number }[] = [];
+        const humidityData: { time: string; value: number }[] = [];
+
         historyData.forEach(entry => {
             const date = new Date(entry.time);
             const hourKey = date.getHours().toString().padStart(2, '0') + ':00';
             const dayKey = date.toISOString().slice(0, 10);
 
-            // Hourly aggregation
+            // Hourly aggregation for watt
             const hourData = hourlyMap.get(hourKey) || { total: 0, count: 0 };
             hourData.total += entry.watt / 1000; // Convert to kW
             hourData.count += 1;
@@ -106,6 +99,14 @@ export default function Dashboard() {
             dayData.total += (entry.watt / 1000); // kW
             dayData.count += 1;
             dailyMap.set(dayKey, dayData);
+
+            // Time series for other metrics (sample every 10th point to reduce data points)
+            if (voltData.length === 0 || voltData.length % 10 === 0) {
+                voltData.push({ time: entry.time, value: entry.volt });
+                ampsData.push({ time: entry.time, value: entry.amps });
+                tempData.push({ time: entry.time, value: entry.temperature });
+                humidityData.push({ time: entry.time, value: entry.humidity });
+            }
         });
 
         // Create hourly usage array
@@ -145,10 +146,14 @@ export default function Dashboard() {
             currentUsage,
             dailyTotal,
             monthlyTotal,
+            voltData,
+            ampsData,
+            tempData,
+            humidityData,
         };
     }, [historyData]);
 
-    const energyData = {
+    const energyData = useMemo(() => ({
         currentUsage: processedData.currentUsage,
         dailyUsage: processedData.dailyTotal,
         monthlyUsage: processedData.monthlyTotal,
@@ -180,9 +185,9 @@ export default function Dashboard() {
             { period: 'Week 4', predicted: 330, confidence: 85 },
         ],
         hourlyUsage: processedData.hourlyUsage,
-    };
+    }), [processedData]);
 
-    const weeklyUsageChartData = {
+    const weeklyUsageChartData = useMemo(() => ({
         labels: energyData.weeklyUsageTrend.map((entry) => entry.day || 'N/A'),
         datasets: [
             {
@@ -195,9 +200,9 @@ export default function Dashboard() {
                 borderWidth: 2,
             },
         ],
-    };
+    }), [energyData.weeklyUsageTrend]);
 
-    const applianceUsageChartData = {
+    const applianceUsageChartData = useMemo(() => ({
         labels: energyData.appliances.map((appliance) => appliance.name),
         datasets: [
             {
@@ -207,9 +212,9 @@ export default function Dashboard() {
                 borderRadius: 8,
             },
         ],
-    };
+    }), [energyData.appliances]);
 
-    const weeklyUsageChartOptions = {
+    const weeklyUsageChartOptions = useMemo(() => ({
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
@@ -253,9 +258,9 @@ export default function Dashboard() {
                 },
             },
         },
-    };
+    }), []);
 
-    const applianceUsageChartOptions = {
+    const applianceUsageChartOptions = useMemo(() => ({
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
@@ -288,9 +293,9 @@ export default function Dashboard() {
                 },
             },
         },
-    };
+    }), []);
 
-    const monthlyTrendChartData = {
+    const monthlyTrendChartData = useMemo(() => ({
         labels: energyData.monthlyTrend.map((entry) => entry.month),
         datasets: [
             {
@@ -303,9 +308,9 @@ export default function Dashboard() {
                 borderWidth: 2,
             },
         ],
-    };
+    }), [energyData.monthlyTrend]);
 
-    const forecastChartData = {
+    const forecastChartData = useMemo(() => ({
         labels: energyData.forecast.map((entry) => entry.period),
         datasets: [
             {
@@ -319,9 +324,9 @@ export default function Dashboard() {
                 borderWidth: 2,
             },
         ],
-    };
+    }), [energyData.forecast]);
 
-    const hourlyUsageChartData = {
+    const hourlyUsageChartData = useMemo(() => ({
         labels: energyData.hourlyUsage.map((entry) => entry.hour),
         datasets: [
             {
@@ -331,9 +336,69 @@ export default function Dashboard() {
                 borderRadius: 8,
             },
         ],
-    };
+    }), [energyData.hourlyUsage]);
 
-    const chartOptions = {
+    const voltChartData = useMemo(() => ({
+        labels: processedData.voltData.map((entry) => new Date(entry.time).toLocaleTimeString()),
+        datasets: [
+            {
+                label: 'Voltage (V)',
+                data: processedData.voltData.map((entry) => entry.value),
+                borderColor: '#FF3B30',
+                backgroundColor: 'rgba(255, 59, 48, 0.1)',
+                tension: 0.4,
+                fill: false,
+                borderWidth: 2,
+            },
+        ],
+    }), [processedData.voltData]);
+
+    const ampsChartData = useMemo(() => ({
+        labels: processedData.ampsData.map((entry) => new Date(entry.time).toLocaleTimeString()),
+        datasets: [
+            {
+                label: 'Current (A)',
+                data: processedData.ampsData.map((entry) => entry.value),
+                borderColor: '#FF9500',
+                backgroundColor: 'rgba(255, 149, 0, 0.1)',
+                tension: 0.4,
+                fill: false,
+                borderWidth: 2,
+            },
+        ],
+    }), [processedData.ampsData]);
+
+    const tempChartData = useMemo(() => ({
+        labels: processedData.tempData.map((entry) => new Date(entry.time).toLocaleTimeString()),
+        datasets: [
+            {
+                label: 'Temperature (°C)',
+                data: processedData.tempData.map((entry) => entry.value),
+                borderColor: '#34C759',
+                backgroundColor: 'rgba(52, 199, 89, 0.1)',
+                tension: 0.4,
+                fill: false,
+                borderWidth: 2,
+            },
+        ],
+    }), [processedData.tempData]);
+
+    const humidityChartData = useMemo(() => ({
+        labels: processedData.humidityData.map((entry) => new Date(entry.time).toLocaleTimeString()),
+        datasets: [
+            {
+                label: 'Humidity (%)',
+                data: processedData.humidityData.map((entry) => entry.value),
+                borderColor: '#007AFF',
+                backgroundColor: 'rgba(0, 122, 255, 0.1)',
+                tension: 0.4,
+                fill: false,
+                borderWidth: 2,
+            },
+        ],
+    }), [processedData.humidityData]);
+
+    const chartOptions = useMemo(() => ({
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
@@ -377,7 +442,17 @@ export default function Dashboard() {
                 },
             },
         },
-    };
+    }), []);
+
+    useEffect(() => {
+        if (isLoaded && !userId) {
+            router.push('/login');
+        }
+    }, [isLoaded, userId, router]);
+
+    if (!isLoaded || !userId) {
+        return <div>Loading...</div>;
+    }
 
     return (
         <div className="min-h-screen bg-slate-50">
@@ -549,6 +624,41 @@ export default function Dashboard() {
                             <p className="mb-5 text-sm text-slate-600">Identify high-consuming appliances in your home.</p>
                             <div className="h-72">
                                 <Bar data={applianceUsageChartData} options={applianceUsageChartOptions} />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Additional Metrics Charts */}
+                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+                            <h3 className="text-lg font-semibold text-slate-900">Voltage Trend</h3>
+                            <p className="mb-5 text-sm text-slate-600">Monitor voltage fluctuations over time.</p>
+                            <div className="h-72">
+                                <Line data={voltChartData} options={chartOptions} />
+                            </div>
+                        </div>
+                        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+                            <h3 className="text-lg font-semibold text-slate-900">Current Trend</h3>
+                            <p className="mb-5 text-sm text-slate-600">Track current consumption patterns.</p>
+                            <div className="h-72">
+                                <Line data={ampsChartData} options={chartOptions} />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+                            <h3 className="text-lg font-semibold text-slate-900">Temperature Trend</h3>
+                            <p className="mb-5 text-sm text-slate-600">Environmental temperature monitoring.</p>
+                            <div className="h-72">
+                                <Line data={tempChartData} options={chartOptions} />
+                            </div>
+                        </div>
+                        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+                            <h3 className="text-lg font-semibold text-slate-900">Humidity Trend</h3>
+                            <p className="mb-5 text-sm text-slate-600">Humidity levels over time.</p>
+                            <div className="h-72">
+                                <Line data={humidityChartData} options={chartOptions} />
                             </div>
                         </div>
                     </div>
