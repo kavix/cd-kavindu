@@ -2,10 +2,11 @@
 
 import { useAuth, UserButton } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import EnergyDashboard from '@/components/EnergyDashboard';
 import HealthCheck from '@/components/HealthCheck';
+import useSWR from 'swr';
 import {
     Chart as ChartJS,
     CategoryScale,
@@ -18,6 +19,21 @@ import {
     Legend,
 } from 'chart.js';
 import { Line, Bar } from 'react-chartjs-2';
+
+type HistoryEntry = {
+    volt: number;
+    amps: number;
+    watt: number;
+    temperature?: number;
+    humidity?: number;
+    time: string;
+};
+
+const fetcher = async (url: string) => {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Failed to fetch data');
+    return res.json();
+};
 
 ChartJS.register(
     CategoryScale,
@@ -34,6 +50,20 @@ export default function Dashboard() {
     const { isLoaded, userId } = useAuth();
     const router = useRouter();
 
+    // Fetch historical data for graphs
+    const endDate = useMemo(() => new Date().toISOString().slice(0, 10), []);
+    const startDate = useMemo(() => {
+        const date = new Date();
+        date.setDate(date.getDate() - 7); // Last 7 days
+        return date.toISOString().slice(0, 10);
+    }, []);
+
+    const { data: historyData, error: historyError } = useSWR<HistoryEntry[]>(
+        `/api/history?start=${startDate}&end=${endDate}&limit=1000`,
+        fetcher,
+        { refreshInterval: 60000 } // Refresh every minute
+    );
+
     useEffect(() => {
         if (isLoaded && !userId) {
             router.push('/login');
@@ -44,14 +74,88 @@ export default function Dashboard() {
         return <div>Loading...</div>;
     }
 
+    // Process historical data for graphs
+    const processedData = useMemo(() => {
+        if (!historyData || historyData.length === 0) {
+            return {
+                hourlyUsage: [],
+                dailyUsage: [],
+                currentUsage: 2.5,
+                dailyTotal: 0,
+                monthlyTotal: 0,
+            };
+        }
+
+        // Group by hour for 24-hour usage
+        const hourlyMap = new Map<string, { total: number; count: number }>();
+        const dailyMap = new Map<string, { total: number; count: number }>();
+
+        historyData.forEach(entry => {
+            const date = new Date(entry.time);
+            const hourKey = date.getHours().toString().padStart(2, '0') + ':00';
+            const dayKey = date.toISOString().slice(0, 10);
+
+            // Hourly aggregation
+            const hourData = hourlyMap.get(hourKey) || { total: 0, count: 0 };
+            hourData.total += entry.watt / 1000; // Convert to kW
+            hourData.count += 1;
+            hourlyMap.set(hourKey, hourData);
+
+            // Daily aggregation
+            const dayData = dailyMap.get(dayKey) || { total: 0, count: 0 };
+            dayData.total += (entry.watt / 1000); // kW
+            dayData.count += 1;
+            dailyMap.set(dayKey, dayData);
+        });
+
+        // Create hourly usage array
+        const hourlyUsage = Array.from({ length: 24 }, (_, i) => {
+            const hour = i.toString().padStart(2, '0') + ':00';
+            const data = hourlyMap.get(hour);
+            return {
+                hour,
+                usage: data ? data.total / data.count : 0,
+            };
+        });
+
+        // Create daily usage array (last 7 days)
+        const dailyUsage = Array.from(dailyMap.entries())
+            .sort(([a], [b]) => a.localeCompare(b))
+            .slice(-7)
+            .map(([date, data]) => ({
+                date,
+                day: new Date(date).toLocaleDateString('en-US', { weekday: 'short' }),
+                usage: (data.total / data.count) * (data.count / 60), // Estimate kWh
+            }));
+
+        const latestEntry = historyData[historyData.length - 1];
+        const currentUsage = latestEntry ? latestEntry.watt / 1000 : 0;
+
+        // Calculate daily total (kWh) - assuming readings every minute
+        const today = new Date().toISOString().slice(0, 10);
+        const todayData = dailyMap.get(today);
+        const dailyTotal = todayData ? (todayData.total / todayData.count) * (todayData.count / 60) : 0;
+
+        // Estimate monthly total
+        const monthlyTotal = dailyTotal * 30;
+
+        return {
+            hourlyUsage,
+            dailyUsage,
+            currentUsage,
+            dailyTotal,
+            monthlyTotal,
+        };
+    }, [historyData]);
+
     const energyData = {
-        currentUsage: 2.5,
-        dailyUsage: 45.2,
-        monthlyUsage: 1200.5,
-        estimatedBill: 15680.50,
+        currentUsage: processedData.currentUsage,
+        dailyUsage: processedData.dailyTotal,
+        monthlyUsage: processedData.monthlyTotal,
+        estimatedBill: processedData.monthlyTotal * 13.06, // Rs. per kWh (average rate)
         peakHourUsage: 1.8,
         offPeakUsage: 0.7,
-        carbonFootprint: 890.3,
+        carbonFootprint: processedData.monthlyTotal * 0.741, // kg CO2 per kWh
         appliances: [
             { name: 'Refrigerator', usage: 0.8, status: 'active', hours: 24 },
             { name: 'Air Conditioner', usage: 1.2, status: 'active', hours: 8 },
@@ -60,22 +164,14 @@ export default function Dashboard() {
             { name: 'Washing Machine', usage: 0.4, status: 'idle', hours: 2 },
             { name: 'Water Heater', usage: 2.1, status: 'idle', hours: 1 },
         ],
-        weeklyUsageTrend: [
-            { day: 'Mon', consumption: 38 },
-            { day: 'Tue', consumption: 42 },
-            { day: 'Wed', consumption: 44 },
-            { day: 'Thu', consumption: 41 },
-            { day: 'Fri', consumption: 48 },
-            { day: 'Sat', consumption: 45 },
-            { day: 'Sun', consumption: 47 },
-        ],
+        weeklyUsageTrend: processedData.dailyUsage,
         monthlyTrend: [
             { month: 'Jan', usage: 1150 },
             { month: 'Feb', usage: 1100 },
             { month: 'Mar', usage: 1220 },
             { month: 'Apr', usage: 1180 },
             { month: 'May', usage: 1250 },
-            { month: 'Jun', usage: 1200.5 },
+            { month: 'Jun', usage: processedData.monthlyTotal },
         ],
         forecast: [
             { period: 'Week 1', predicted: 310, confidence: 95 },
@@ -83,24 +179,15 @@ export default function Dashboard() {
             { period: 'Week 3', predicted: 318, confidence: 88 },
             { period: 'Week 4', predicted: 330, confidence: 85 },
         ],
-        hourlyUsage: [
-            { hour: '00:00', usage: 0.8 },
-            { hour: '03:00', usage: 0.7 },
-            { hour: '06:00', usage: 1.2 },
-            { hour: '09:00', usage: 1.8 },
-            { hour: '12:00', usage: 2.3 },
-            { hour: '15:00', usage: 2.1 },
-            { hour: '18:00', usage: 2.8 },
-            { hour: '21:00', usage: 2.4 },
-        ],
+        hourlyUsage: processedData.hourlyUsage,
     };
 
     const weeklyUsageChartData = {
-        labels: energyData.weeklyUsageTrend.map((entry) => entry.day),
+        labels: energyData.weeklyUsageTrend.map((entry) => entry.day || 'N/A'),
         datasets: [
             {
                 label: 'Consumption (kWh)',
-                data: energyData.weeklyUsageTrend.map((entry) => entry.consumption),
+                data: energyData.weeklyUsageTrend.map((entry) => entry.usage || 0),
                 borderColor: '#007AFF',
                 backgroundColor: 'rgba(0, 122, 255, 0.1)',
                 tension: 0.4,
