@@ -62,6 +62,7 @@ export default function EnergyDashboard() {
     data: current,
     error: currentError,
     isLoading: currentLoading,
+    mutate: mutateCurrent,
   } = useSWR<CurrentResponse>(`${API_BASE}/current`, fetcher, {
     refreshInterval: 2000,
   });
@@ -70,9 +71,15 @@ export default function EnergyDashboard() {
     data: prediction,
     error: predictionError,
     isLoading: predictionLoading,
+    mutate: mutatePrediction,
   } = useSWR<PredictResponse>(`${API_BASE}/predict`, fetcher, {
     refreshInterval: 10000,
   });
+
+  const handleRefresh = () => {
+    mutateCurrent();
+    mutatePrediction();
+  };
 
   const currentStatus = currentError
     ? 'Could not load live data'
