@@ -50,11 +50,13 @@ export default function Dashboard() {
     const { isLoaded, userId } = useAuth();
     const router = useRouter();
 
-    // Fetch historical data for graphs with specific date range
+    // Fetch historical data for graphs - last 24 hours with 5-second intervals
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const today = new Date().toISOString().split('T')[0];
     const { data: historyData, error: historyError } = useSWR<HistoryEntry[]>(
-        `/api/history/mongo?start=2025-12-02&end=2025-12-10&limit=10000`,
+        `/api/history/mongo?start=${yesterday}&end=${today}&limit=20000`,
         fetcher,
-        { refreshInterval: 60000 } // Refresh every minute
+        { refreshInterval: 5000 } // Refresh every 5 seconds to match data updates
     );
 
     // Process historical data for graphs - MUST be before conditional returns
@@ -70,6 +72,7 @@ export default function Dashboard() {
                 ampsData: [],
                 tempData: [],
                 humidityData: [],
+                wattData: [],
             };
         }
 
@@ -77,45 +80,50 @@ export default function Dashboard() {
         const hourlyMap = new Map<string, { total: number; count: number }>();
         const dailyMap = new Map<string, { total: number; count: number }>();
 
-        // Time series data for other metrics
+        // Time series data - with 5-second intervals, we sample every 12th point (1 minute intervals)
         const voltData: { time: string; value: number }[] = [];
         const ampsData: { time: string; value: number }[] = [];
         const tempData: { time: string; value: number }[] = [];
         const humidityData: { time: string; value: number }[] = [];
+        const wattData: { time: string; value: number }[] = [];
 
-        historyData.forEach(entry => {
+        historyData.forEach((entry, index) => {
             const date = new Date(entry.time);
             const hourKey = date.getHours().toString().padStart(2, '0') + ':00';
             const dayKey = date.toISOString().slice(0, 10);
 
-            // Hourly aggregation for watt
+            // Hourly aggregation for watt (converting to kWh)
             const hourData = hourlyMap.get(hourKey) || { total: 0, count: 0 };
-            hourData.total += entry.watt / 1000; // Convert to kW
+            // Each reading is 5 seconds = 5/3600 hours, so energy = watt * (5/3600)
+            hourData.total += (entry.watt * 5) / 3600 / 1000; // kWh
             hourData.count += 1;
             hourlyMap.set(hourKey, hourData);
 
             // Daily aggregation
             const dayData = dailyMap.get(dayKey) || { total: 0, count: 0 };
-            dayData.total += (entry.watt / 1000); // kW
+            dayData.total += (entry.watt * 5) / 3600 / 1000; // kWh
             dayData.count += 1;
             dailyMap.set(dayKey, dayData);
 
-            // Time series for other metrics (sample every 10th point to reduce data points)
-            if (voltData.length === 0 || voltData.length % 10 === 0) {
-                voltData.push({ time: entry.time, value: entry.volt });
-                ampsData.push({ time: entry.time, value: entry.amps });
-                tempData.push({ time: entry.time, value: entry.temperature });
-                humidityData.push({ time: entry.time, value: entry.humidity });
+            // Sample every 12th point (1 minute) for graphs, or take last 500 points
+            const shouldInclude = index % 12 === 0 || historyData.length - index <= 500;
+            if (shouldInclude) {
+                const timeLabel = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                voltData.push({ time: timeLabel, value: entry.volt });
+                ampsData.push({ time: timeLabel, value: entry.amps });
+                tempData.push({ time: timeLabel, value: entry.temperature });
+                humidityData.push({ time: timeLabel, value: entry.humidity });
+                wattData.push({ time: timeLabel, value: entry.watt / 1000 }); // Convert to kW
             }
         });
 
-        // Create hourly usage array
+        // Create hourly usage array (kWh per hour)
         const hourlyUsage = Array.from({ length: 24 }, (_, i) => {
             const hour = i.toString().padStart(2, '0') + ':00';
             const data = hourlyMap.get(hour);
             return {
                 hour,
-                usage: data ? data.total / data.count : 0,
+                usage: data ? data.total : 0, // Already in kWh
             };
         });
 
@@ -126,16 +134,16 @@ export default function Dashboard() {
             .map(([date, data]) => ({
                 date,
                 day: new Date(date).toLocaleDateString('en-US', { weekday: 'short' }),
-                usage: (data.total / data.count) * (data.count / 60), // Estimate kWh
+                usage: data.total, // Already in kWh
             }));
 
         const latestEntry = historyData[historyData.length - 1];
         const currentUsage = latestEntry ? latestEntry.watt / 1000 : 0;
 
-        // Calculate daily total (kWh) - assuming readings every minute
+        // Calculate daily total (kWh) - sum of all 5-second readings converted to kWh
         const today = new Date().toISOString().slice(0, 10);
         const todayData = dailyMap.get(today);
-        const dailyTotal = todayData ? (todayData.total / todayData.count) * (todayData.count / 60) : 0;
+        const dailyTotal = todayData ? todayData.total : 0; // Already in kWh
 
         // Estimate monthly total
         const monthlyTotal = dailyTotal * 30;
@@ -150,6 +158,7 @@ export default function Dashboard() {
             ampsData,
             tempData,
             humidityData,
+            wattData,
         };
     }, [historyData]);
 
@@ -339,7 +348,7 @@ export default function Dashboard() {
     }), [energyData.hourlyUsage]);
 
     const voltChartData = useMemo(() => ({
-        labels: processedData.voltData.map((entry) => new Date(entry.time).toLocaleTimeString()),
+        labels: processedData.voltData.map((entry) => entry.time),
         datasets: [
             {
                 label: 'Voltage (V)',
@@ -354,7 +363,7 @@ export default function Dashboard() {
     }), [processedData.voltData]);
 
     const ampsChartData = useMemo(() => ({
-        labels: processedData.ampsData.map((entry) => new Date(entry.time).toLocaleTimeString()),
+        labels: processedData.ampsData.map((entry) => entry.time),
         datasets: [
             {
                 label: 'Current (A)',
@@ -368,8 +377,23 @@ export default function Dashboard() {
         ],
     }), [processedData.ampsData]);
 
+    const wattChartData = useMemo(() => ({
+        labels: processedData.wattData?.map((entry) => entry.time) || [],
+        datasets: [
+            {
+                label: 'Power (kW)',
+                data: processedData.wattData?.map((entry) => entry.value) || [],
+                borderColor: '#5856D6',
+                backgroundColor: 'rgba(88, 86, 214, 0.1)',
+                tension: 0.4,
+                fill: true,
+                borderWidth: 2,
+            },
+        ],
+    }), [processedData.wattData]);
+
     const tempChartData = useMemo(() => ({
-        labels: processedData.tempData.map((entry) => new Date(entry.time).toLocaleTimeString()),
+        labels: processedData.tempData.map((entry) => entry.time),
         datasets: [
             {
                 label: 'Temperature (°C)',
@@ -384,7 +408,7 @@ export default function Dashboard() {
     }), [processedData.tempData]);
 
     const humidityChartData = useMemo(() => ({
-        labels: processedData.humidityData.map((entry) => new Date(entry.time).toLocaleTimeString()),
+        labels: processedData.humidityData.map((entry) => entry.time),
         datasets: [
             {
                 label: 'Humidity (%)',
@@ -631,6 +655,76 @@ export default function Dashboard() {
                     {/* Additional Metrics Charts */}
                     <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+                            <h3 className="text-lg font-semibold text-slate-900">Real-Time Power Consumption</h3>
+                            <p className="mb-5 text-sm text-slate-600">Live power usage over time (5-second intervals).</p>
+                            <div className="h-72">
+                                <Line data={wattChartData} options={chartOptions} />
+                            </div>
+                        </div>
+                        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+                            <h3 className="text-lg font-semibold text-slate-900">Voltage Trend</h3>
+                            <p className="mb-5 text-sm text-slate-600">Monitor voltage fluctuations over time.</p>
+                            <div className="h-72">
+                                <Line data={voltChartData} options={chartOptions} />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+                            <h3 className="text-lg font-semibold text-slate-900">Current Trend</h3>
+                            <p className="mb-5 text-sm text-slate-600">Track current consumption patterns.</p>
+                            <div className="h-72">
+                                <Line data={ampsChartData} options={chartOptions} />
+                            </div>
+                        </div>
+                        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+                            <h3 className="text-lg font-semibold text-slate-900">Temperature Trend</h3>
+                            <p className="mb-5 text-sm text-slate-600">Environmental temperature monitoring.</p>
+                            <div className="h-72">
+                                <Line data={tempChartData} options={chartOptions} />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+                            <h3 className="text-lg font-semibold text-slate-900">Humidity Trend</h3>
+                            <p className="mb-5 text-sm text-slate-600">Humidity levels over time.</p>
+                            <div className="h-72">
+                                <Line data={humidityChartData} options={chartOptions} />
+                            </div>
+                        </div>
+                        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+                            <h3 className="text-lg font-semibold text-slate-900">Data Quality</h3>
+                            <p className="mb-5 text-sm text-slate-600">Monitoring statistics from MongoDB.</p>
+                            <div className="grid grid-cols-2 gap-4 pt-6">
+                                <div className="text-center">
+                                    <p className="text-3xl font-bold text-blue-600">{historyData?.length || 0}</p>
+                                    <p className="mt-1 text-sm text-slate-600">Data Points</p>
+                                </div>
+                                <div className="text-center">
+                                    <p className="text-3xl font-bold text-green-600">5s</p>
+                                    <p className="mt-1 text-sm text-slate-600">Update Interval</p>
+                                </div>
+                            </div>
+                            <div className="mt-6">
+                                {historyError ? (
+                                    <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+                                        Error loading data from MongoDB
+                                    </div>
+                                ) : (
+                                    <div className="rounded-lg bg-green-50 p-3 text-sm text-green-700">
+                                        ✓ Connected to MongoDB
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Additional Metrics Charts - OLD VERSION TO REMOVE */}
+                    <div className="hidden">
+                        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
                             <h3 className="text-lg font-semibold text-slate-900">Voltage Trend</h3>
                             <p className="mb-5 text-sm text-slate-600">Monitor voltage fluctuations over time.</p>
                             <div className="h-72">
@@ -646,7 +740,7 @@ export default function Dashboard() {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                    <div className="hidden">
                         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
                             <h3 className="text-lg font-semibold text-slate-900">Temperature Trend</h3>
                             <p className="mb-5 text-sm text-slate-600">Environmental temperature monitoring.</p>

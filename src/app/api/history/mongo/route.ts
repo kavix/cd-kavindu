@@ -1,17 +1,14 @@
 import { NextResponse } from 'next/server';
 import { MongoClient } from 'mongodb';
 
-const uri = process.env.MONGODB_URI;
-const dbName = process.env.MONGODB_DB || 'voltura';
-const collectionName = process.env.MONGODB_COLLECTION || 'volData';
+const uri = 'mongodb+srv://blacky:2419624196@voltura.vl2m5kl.mongodb.net/volData?retryWrites=true&w=majority';
+const dbName = 'volData';
+const collectionName = 'volData';
 
 let client: MongoClient | null = null;
 
 async function getClient() {
   if (client) return client;
-  if (!uri) {
-    throw new Error('MONGODB_URI is not set');
-  }
   client = new MongoClient(uri, { maxPoolSize: 5 });
   await client.connect();
   return client;
@@ -42,14 +39,28 @@ export async function GET(req: Request) {
 
     const items = await cursor.toArray();
 
-    const data = items.map((doc: any) => ({
-      volt: doc.volt,
-      amps: doc.amps,
-      watt: doc.watt,
-      temperature: doc.temperature,
-      humidity: doc.humidity,
-      time: doc.time instanceof Date ? doc.time.toISOString() : doc.time,
-    }));
+    const data = items.map((doc: any) => {
+      // Handle both direct Date objects and MongoDB $date format
+      let timeValue: string;
+      if (doc.time instanceof Date) {
+        timeValue = doc.time.toISOString();
+      } else if (doc.time && typeof doc.time === 'object' && doc.time.$date) {
+        timeValue = new Date(doc.time.$date).toISOString();
+      } else if (typeof doc.time === 'string') {
+        timeValue = new Date(doc.time).toISOString();
+      } else {
+        timeValue = new Date().toISOString();
+      }
+
+      return {
+        volt: doc.volt || 0,
+        amps: doc.amps || 0,
+        watt: doc.watt || 0,
+        temperature: doc.temperature || 0,
+        humidity: doc.humidity || 0,
+        time: timeValue,
+      };
+    });
 
     return NextResponse.json(data);
   } catch (error) {
