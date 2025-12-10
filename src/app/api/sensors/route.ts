@@ -3,7 +3,7 @@ import { MongoClient } from 'mongodb';
 
 const uri = 'mongodb+srv://blacky:2419624196@voltura.vl2m5kl.mongodb.net/volData?retryWrites=true&w=majority';
 const dbName = 'volData';
-const collectionName = 'volData';
+const collectionName = 'sensors';
 
 let client: MongoClient | null = null;
 
