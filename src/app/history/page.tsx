@@ -34,32 +34,6 @@ export default function HistoryPage() {
   const [activeQuick, setActiveQuick] = useState<'1h' | '6h' | '24h' | 'today' | '7d' | null>('24h');
   const [hasFetched, setHasFetched] = useState(false);
 
-  const setRange = (type: '1h' | '6h' | '24h' | 'today' | '7d') => {
-    const now = new Date();
-    let start = now;
-
-    switch (type) {
-      case '1h':
-        start = subHours(now, 1);
-        break;
-      case '6h':
-        start = subHours(now, 6);
-        break;
-      case '24h':
-        start = subHours(now, 24);
-        break;
-      case 'today':
-        start = startOfDay(now);
-        break;
-      case '7d':
-        start = subDays(now, 7);
-        break;
-    }
-
-    setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
-    setEndDate(format(now, "yyyy-MM-dd'T'HH:mm"));
-  };
-
   // All hooks must be called before any conditional returns
   const rows = useMemo(
     () =>
@@ -218,8 +192,8 @@ export default function HistoryPage() {
                   key={item.key}
                   onClick={() => setRange(item.key as '1h' | '6h' | '24h' | 'today' | '7d', true)}
                   className={`px-3 py-1 text-xs font-medium rounded-full transition border ${activeQuick === item.key
-                      ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
-                      : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
+                    ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
+                    : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
                     }`}
                 >
                   {item.label}

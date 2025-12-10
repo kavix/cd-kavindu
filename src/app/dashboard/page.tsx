@@ -87,26 +87,44 @@ export default function Dashboard() {
         const humidityData: { time: string; value: number }[] = [];
         const wattData: { time: string; value: number }[] = [];
 
-        historyData.forEach((entry, index) => {
+        // Sort data by time to ensure correct integration
+        const sortedData = [...historyData].sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+
+        sortedData.forEach((entry, index) => {
             const date = new Date(entry.time);
             const hourKey = date.getHours().toString().padStart(2, '0') + ':00';
             const dayKey = date.toISOString().slice(0, 10);
 
-            // Hourly aggregation for watt (converting to kWh)
+            // Calculate energy since last reading (kWh)
+            let energyKWh = 0;
+            if (index > 0) {
+                const prevEntry = sortedData[index - 1];
+                const prevDate = new Date(prevEntry.time);
+                const timeDiffMs = date.getTime() - prevDate.getTime();
+
+                // Only calculate if time difference is reasonable (e.g., < 1 hour) to avoid huge spikes from downtime
+                if (timeDiffMs > 0 && timeDiffMs < 3600000) {
+                    const timeDiffHours = timeDiffMs / (1000 * 60 * 60);
+                    // Trapezoidal rule: average power * time
+                    const avgWatt = (entry.watt + prevEntry.watt) / 2;
+                    energyKWh = (avgWatt * timeDiffHours) / 1000;
+                }
+            }
+
+            // Hourly aggregation
             const hourData = hourlyMap.get(hourKey) || { total: 0, count: 0 };
-            // Each reading is 5 seconds = 5/3600 hours, so energy = watt * (5/3600)
-            hourData.total += (entry.watt * 5) / 3600 / 1000; // kWh
+            hourData.total += energyKWh;
             hourData.count += 1;
             hourlyMap.set(hourKey, hourData);
 
             // Daily aggregation
             const dayData = dailyMap.get(dayKey) || { total: 0, count: 0 };
-            dayData.total += (entry.watt * 5) / 3600 / 1000; // kWh
+            dayData.total += energyKWh;
             dayData.count += 1;
             dailyMap.set(dayKey, dayData);
 
             // Sample every 12th point (1 minute) for graphs, or take last 500 points
-            const shouldInclude = index % 12 === 0 || historyData.length - index <= 500;
+            const shouldInclude = index % 12 === 0 || sortedData.length - index <= 500;
             if (shouldInclude) {
                 const timeLabel = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
                 voltData.push({ time: timeLabel, value: entry.volt });
@@ -137,10 +155,10 @@ export default function Dashboard() {
                 usage: data.total, // Already in kWh
             }));
 
-        const latestEntry = historyData[historyData.length - 1];
+        const latestEntry = sortedData[sortedData.length - 1];
         const currentUsage = latestEntry ? latestEntry.watt / 1000 : 0;
 
-        // Calculate daily total (kWh) - sum of all 5-second readings converted to kWh
+        // Calculate daily total (kWh)
         const today = new Date().toISOString().slice(0, 10);
         const todayData = dailyMap.get(today);
         const dailyTotal = todayData ? todayData.total : 0; // Already in kWh
@@ -169,7 +187,7 @@ export default function Dashboard() {
         estimatedBill: processedData.monthlyTotal * 13.06, // Rs. per kWh (average rate)
         peakHourUsage: 1.8,
         offPeakUsage: 0.7,
-        carbonFootprint: processedData.monthlyTotal * 0.741, // kg CO2 per kWh
+        carbonFootprint: processedData.monthlyTotal * 0.4062, // kg CO2 per kWh
         appliances: [
             { name: 'Refrigerator', usage: 0.8, status: 'active', hours: 24 },
             { name: 'Air Conditioner', usage: 1.2, status: 'active', hours: 8 },
