@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useAuth, UserButton } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import { subHours, subDays, startOfDay, format } from 'date-fns';
 import HealthCheck from '@/components/HealthCheck';
 import HistoryChart from '@/components/HistoryChart';
 
@@ -24,12 +25,38 @@ export default function HistoryPage() {
   const router = useRouter();
   const [startDate, setStartDate] = useState(() => {
     const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    return yesterday.toISOString().slice(0, 10);
+    return format(yesterday, "yyyy-MM-dd'T'HH:mm");
   });
-  const [endDate, setEndDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [endDate, setEndDate] = useState(() => format(new Date(), "yyyy-MM-dd'T'HH:mm"));
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const setRange = (type: '1h' | '6h' | '24h' | 'today' | '7d') => {
+    const now = new Date();
+    let start = now;
+
+    switch (type) {
+      case '1h':
+        start = subHours(now, 1);
+        break;
+      case '6h':
+        start = subHours(now, 6);
+        break;
+      case '24h':
+        start = subHours(now, 24);
+        break;
+      case 'today':
+        start = startOfDay(now);
+        break;
+      case '7d':
+        start = subDays(now, 7);
+        break;
+    }
+
+    setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
+    setEndDate(format(now, "yyyy-MM-dd'T'HH:mm"));
+  };
 
   // All hooks must be called before any conditional returns
   const rows = useMemo(
@@ -130,20 +157,55 @@ export default function HistoryPage() {
           </div>
 
           <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            {/* Quick Filters */}
+            <div className="mb-6 flex flex-wrap gap-2">
+              <span className="text-sm font-medium text-slate-700 self-center mr-2">Quick Ranges:</span>
+              <button
+                onClick={() => setRange('1h')}
+                className="px-3 py-1 text-xs font-medium text-slate-600 bg-slate-100 rounded-full hover:bg-slate-200 transition"
+              >
+                Last Hour
+              </button>
+              <button
+                onClick={() => setRange('6h')}
+                className="px-3 py-1 text-xs font-medium text-slate-600 bg-slate-100 rounded-full hover:bg-slate-200 transition"
+              >
+                Last 6 Hours
+              </button>
+              <button
+                onClick={() => setRange('24h')}
+                className="px-3 py-1 text-xs font-medium text-slate-600 bg-slate-100 rounded-full hover:bg-slate-200 transition"
+              >
+                Last 24 Hours
+              </button>
+              <button
+                onClick={() => setRange('today')}
+                className="px-3 py-1 text-xs font-medium text-slate-600 bg-slate-100 rounded-full hover:bg-slate-200 transition"
+              >
+                Today
+              </button>
+              <button
+                onClick={() => setRange('7d')}
+                className="px-3 py-1 text-xs font-medium text-slate-600 bg-slate-100 rounded-full hover:bg-slate-200 transition"
+              >
+                Last 7 Days
+              </button>
+            </div>
+
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
               <label className="flex flex-col gap-2 text-sm text-slate-700">
-                Start date
+                Start Time
                 <input
-                  type="date"
+                  type="datetime-local"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
                   className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                 />
               </label>
               <label className="flex flex-col gap-2 text-sm text-slate-700">
-                End date
+                End Time
                 <input
-                  type="date"
+                  type="datetime-local"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
                   className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
