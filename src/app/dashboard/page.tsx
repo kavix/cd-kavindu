@@ -487,9 +487,15 @@ export default function Dashboard() {
                         <nav className="hidden md:flex items-center gap-4">
                             <Link
                                 href="/dashboard"
-                                className="text-sm font-medium text-slate-700 transition hover:text-slate-900"
+                                className="text-sm font-medium text-slate-900 transition hover:text-slate-900"
                             >
                                 Dashboard
+                            </Link>
+                            <Link
+                                href="/live"
+                                className="text-sm font-medium text-slate-700 transition hover:text-slate-900"
+                            >
+                                Live Monitor
                             </Link>
                             <Link
                                 href="/history"
