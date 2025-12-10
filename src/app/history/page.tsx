@@ -31,6 +31,8 @@ export default function HistoryPage() {
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activeQuick, setActiveQuick] = useState<'1h' | '6h' | '24h' | 'today' | '7d' | null>('24h');
+  const [hasFetched, setHasFetched] = useState(false);
 
   const setRange = (type: '1h' | '6h' | '24h' | 'today' | '7d') => {
     const now = new Date();
@@ -76,18 +78,21 @@ export default function HistoryPage() {
     }
   }, [isLoaded, userId, router]);
 
-  const handleFetch = async () => {
+  const handleFetch = async (startOverride?: string, endOverride?: string) => {
     setError(null);
     setLoading(true);
     try {
-      if (!startDate || !endDate) {
+      const startToUse = startOverride ?? startDate;
+      const endToUse = endOverride ?? endDate;
+
+      if (!startToUse || !endToUse) {
         throw new Error('Please choose both start and end dates.');
       }
 
       // Use Next.js API route to avoid CORS issues
       const url = new URL('/api/history/mongo', window.location.origin);
-      url.searchParams.set('start', startDate);
-      url.searchParams.set('end', endDate);
+      url.searchParams.set('start', new Date(startToUse).toISOString());
+      url.searchParams.set('end', new Date(endToUse).toISOString());
       url.searchParams.set('limit', '100');
 
       const res = await fetch(url.toString());
@@ -96,6 +101,7 @@ export default function HistoryPage() {
       }
       const json = await res.json();
       setEntries(Array.isArray(json) ? json : []);
+      setHasFetched(true);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unexpected error';
       setError(message);
@@ -103,6 +109,47 @@ export default function HistoryPage() {
       setLoading(false);
     }
   };
+
+  const setRange = (type: '1h' | '6h' | '24h' | 'today' | '7d', apply: boolean = false) => {
+    const now = new Date();
+    let start = now;
+
+    switch (type) {
+      case '1h':
+        start = subHours(now, 1);
+        break;
+      case '6h':
+        start = subHours(now, 6);
+        break;
+      case '24h':
+        start = subHours(now, 24);
+        break;
+      case 'today':
+        start = startOfDay(now);
+        break;
+      case '7d':
+        start = subDays(now, 7);
+        break;
+    }
+
+    const formattedStart = format(start, "yyyy-MM-dd'T'HH:mm");
+    const formattedEnd = format(now, "yyyy-MM-dd'T'HH:mm");
+
+    setActiveQuick(type);
+    setStartDate(formattedStart);
+    setEndDate(formattedEnd);
+
+    if (apply) {
+      void handleFetch(formattedStart, formattedEnd);
+    }
+  };
+
+  const rangeLabel = `${new Date(startDate).toLocaleString()} – ${new Date(endDate).toLocaleString()}`;
+
+  useEffect(() => {
+    // Initial fetch for a friendlier default (last 24 hours)
+    setRange('24h', true);
+  }, []);
 
   // Always render the same structure to maintain consistent hook order
   return (
@@ -159,62 +206,57 @@ export default function HistoryPage() {
           <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             {/* Quick Filters */}
             <div className="mb-6 flex flex-wrap gap-2">
-              <span className="text-sm font-medium text-slate-700 self-center mr-2">Quick Ranges:</span>
-              <button
-                onClick={() => setRange('1h')}
-                className="px-3 py-1 text-xs font-medium text-slate-600 bg-slate-100 rounded-full hover:bg-slate-200 transition"
-              >
-                Last Hour
-              </button>
-              <button
-                onClick={() => setRange('6h')}
-                className="px-3 py-1 text-xs font-medium text-slate-600 bg-slate-100 rounded-full hover:bg-slate-200 transition"
-              >
-                Last 6 Hours
-              </button>
-              <button
-                onClick={() => setRange('24h')}
-                className="px-3 py-1 text-xs font-medium text-slate-600 bg-slate-100 rounded-full hover:bg-slate-200 transition"
-              >
-                Last 24 Hours
-              </button>
-              <button
-                onClick={() => setRange('today')}
-                className="px-3 py-1 text-xs font-medium text-slate-600 bg-slate-100 rounded-full hover:bg-slate-200 transition"
-              >
-                Today
-              </button>
-              <button
-                onClick={() => setRange('7d')}
-                className="px-3 py-1 text-xs font-medium text-slate-600 bg-slate-100 rounded-full hover:bg-slate-200 transition"
-              >
-                Last 7 Days
-              </button>
+              <span className="text-sm font-medium text-slate-700 self-center mr-2">Quick ranges</span>
+              {[
+                { key: '1h', label: 'Last hour' },
+                { key: '6h', label: 'Last 6 hours' },
+                { key: '24h', label: 'Last 24 hours' },
+                { key: 'today', label: 'Today' },
+                { key: '7d', label: 'Last 7 days' },
+              ].map((item) => (
+                <button
+                  key={item.key}
+                  onClick={() => setRange(item.key as '1h' | '6h' | '24h' | 'today' | '7d', true)}
+                  className={`px-3 py-1 text-xs font-medium rounded-full transition border ${activeQuick === item.key
+                      ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
+                      : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
+                    }`}
+                >
+                  {item.label}
+                </button>
+              ))}
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
               <label className="flex flex-col gap-2 text-sm text-slate-700">
-                Start Time
+                Start time
                 <input
                   type="datetime-local"
                   value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
+                  onChange={(e) => {
+                    setActiveQuick(null);
+                    setStartDate(e.target.value);
+                  }}
                   className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                 />
               </label>
               <label className="flex flex-col gap-2 text-sm text-slate-700">
-                End Time
+                End time
                 <input
                   type="datetime-local"
                   value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
+                  onChange={(e) => {
+                    setActiveQuick(null);
+                    setEndDate(e.target.value);
+                  }}
                   className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                 />
               </label>
-              <div className="sm:col-span-2 flex items-end">
-                <p className="text-sm text-slate-500">
-                  Results limited to the most recent 100 entries within the selected range.
-                </p>
+              <div className="sm:col-span-2 flex items-center justify-between text-sm text-slate-600">
+                <p>Results limited to the most recent 100 entries within the selected range.</p>
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+                  {hasFetched ? rangeLabel : 'No range selected yet'}
+                </span>
               </div>
             </div>
 
