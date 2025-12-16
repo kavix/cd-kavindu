@@ -2,9 +2,8 @@
 
 import { useAuth, UserButton } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import EnergyDashboard from '@/components/EnergyDashboard';
 import HealthCheck from '@/components/HealthCheck';
 import useSWR from 'swr';
 import {
@@ -14,13 +13,16 @@ import {
     PointElement,
     LineElement,
     BarElement,
+    ArcElement,
     Title,
     Tooltip,
     Legend,
+    Filler,
 } from 'chart.js';
-import { Line, Bar } from 'react-chartjs-2';
+import { Line, Bar, Doughnut } from 'react-chartjs-2';
 
-type HistoryEntry = {
+type SensorData = {
+    _id: string;
     volt: number;
     current1: number;
     current2: number;
@@ -35,6 +37,13 @@ type HistoryEntry = {
     time: string;
 };
 
+// Room configuration - consistent across the app
+const ROOMS = [
+    { id: 1, name: 'Living Room', icon: '🛋️', color: '#22c55e', bgColor: 'bg-green-50', borderColor: 'border-green-200', textColor: 'text-green-700' },
+    { id: 2, name: 'Bedroom', icon: '🛏️', color: '#0ea5e9', bgColor: 'bg-sky-50', borderColor: 'border-sky-200', textColor: 'text-sky-700' },
+    { id: 3, name: 'Kitchen', icon: '🍳', color: '#f97316', bgColor: 'bg-orange-50', borderColor: 'border-orange-200', textColor: 'text-orange-700' },
+];
+
 const fetcher = async (url: string) => {
     const res = await fetch(url);
     if (!res.ok) throw new Error('Failed to fetch data');
@@ -47,406 +56,126 @@ ChartJS.register(
     PointElement,
     LineElement,
     BarElement,
+    ArcElement,
     Title,
     Tooltip,
     Legend,
+    Filler,
 );
+
+const formatNumber = (value: number | undefined, decimals = 2) => {
+    if (typeof value !== 'number' || Number.isNaN(value)) return '—';
+    return value.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+};
 
 export default function Dashboard() {
     const { isLoaded, userId } = useAuth();
     const router = useRouter();
 
-    // Fetch historical data for graphs - last 24 hours with 5-second intervals
-    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    const today = new Date().toISOString().split('T')[0];
-    const { data: historyData, error: historyError } = useSWR<HistoryEntry[]>(
-        `/api/history/mongo?start=${yesterday}&end=${today}&limit=20000`,
+    // Fetch live sensor data (last 50 readings)
+    const { data: sensorData, error: sensorError } = useSWR<SensorData[]>(
+        '/api/sensors',
         fetcher,
-        { refreshInterval: 5000 } // Refresh every 5 seconds to match data updates
+        { refreshInterval: 5000 }
     );
 
-    // Process historical data for graphs - MUST be before conditional returns
-    const processedData = useMemo(() => {
-        if (!historyData || historyData.length === 0) {
+    // Fetch historical data for trends
+    const { data: historyData, error: historyError } = useSWR<SensorData[]>(
+        `/api/history/mongo?start=${new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()}&end=${new Date().toISOString()}&limit=2000`,
+        fetcher,
+        { refreshInterval: 30000 }
+    );
+
+    // Process data for analytics
+    const analytics = useMemo(() => {
+        const data = sensorData || [];
+        const history = historyData || [];
+
+        if (data.length === 0) {
             return {
+                latest: null,
+                rooms: ROOMS.map(room => ({ room, current: 0, power: 0, avgPower: 0, maxPower: 0, contribution: 0 })),
+                totalPower: 0,
+                avgTotalPower: 0,
+                maxTotalPower: 0,
+                voltage: 0,
+                temperature: 0,
+                humidity: 0,
                 hourlyUsage: [],
-                dailyUsage: [],
-                currentUsage: 2.5,
-                dailyTotal: 0,
-                monthlyTotal: 0,
-                voltData: [],
-                ampsData: [],
-                tempData: [],
-                humidityData: [],
-                wattData: [],
+                powerTrend: [],
+                roomDistribution: [0, 0, 0],
             };
         }
 
-        // Group by hour for 24-hour usage
-        const hourlyMap = new Map<string, { total: number; count: number }>();
-        const dailyMap = new Map<string, { total: number; count: number }>();
+        const latest = data[data.length - 1];
+        const totalPower = latest.total_power || (latest.power1 + latest.power2 + latest.power3);
 
-        // Time series data - with 5-second intervals, we sample every 12th point (1 minute intervals)
-        const voltData: { time: string; value: number }[] = [];
-        const ampsData: { time: string; value: number }[] = [];
-        const tempData: { time: string; value: number }[] = [];
-        const humidityData: { time: string; value: number }[] = [];
-        const wattData: { time: string; value: number }[] = [];
+        // Room analytics
+        const rooms = ROOMS.map(room => {
+            const powerKey = `power${room.id}` as keyof SensorData;
+            const currentKey = `current${room.id}` as keyof SensorData;
+            const powers = data.map(d => d[powerKey] as number);
+            const avgPower = powers.reduce((a, b) => a + b, 0) / powers.length;
+            const maxPower = Math.max(...powers);
 
-        // Sort data by time to ensure correct integration
-        const sortedData = [...historyData].sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
-
-        sortedData.forEach((entry, index) => {
-            const date = new Date(entry.time);
-            const hourKey = date.getHours().toString().padStart(2, '0') + ':00';
-            const dayKey = date.toISOString().slice(0, 10);
-
-            // Calculate energy since last reading (kWh)
-            let energyKWh = 0;
-            if (index > 0) {
-                const prevEntry = sortedData[index - 1];
-                const prevDate = new Date(prevEntry.time);
-                const timeDiffMs = date.getTime() - prevDate.getTime();
-
-                // Only calculate if time difference is reasonable (e.g., < 1 hour) to avoid huge spikes from downtime
-                if (timeDiffMs > 0 && timeDiffMs < 3600000) {
-                    const timeDiffHours = timeDiffMs / (1000 * 60 * 60);
-                    // Trapezoidal rule: average power * time
-                    const avgWatt = (entry.watt + prevEntry.watt) / 2;
-                    energyKWh = (avgWatt * timeDiffHours) / 1000;
-                }
-            }
-
-            // Hourly aggregation
-            const hourData = hourlyMap.get(hourKey) || { total: 0, count: 0 };
-            hourData.total += energyKWh;
-            hourData.count += 1;
-            hourlyMap.set(hourKey, hourData);
-
-            // Daily aggregation
-            const dayData = dailyMap.get(dayKey) || { total: 0, count: 0 };
-            dayData.total += energyKWh;
-            dayData.count += 1;
-            dailyMap.set(dayKey, dayData);
-
-            // Sample every 12th point (1 minute) for graphs, or take last 500 points
-            const shouldInclude = index % 12 === 0 || sortedData.length - index <= 500;
-            if (shouldInclude) {
-                const timeLabel = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-                voltData.push({ time: timeLabel, value: entry.volt });
-                const ampsSum = (entry.current1 || 0) + (entry.current2 || 0) + (entry.current3 || 0);
-                ampsData.push({ time: timeLabel, value: ampsSum });
-                tempData.push({ time: timeLabel, value: entry.temperature });
-                humidityData.push({ time: timeLabel, value: entry.humidity });
-                wattData.push({ time: timeLabel, value: entry.watt / 1000 }); // Convert to kW
-            }
-        });
-
-        // Create hourly usage array (kWh per hour)
-        const hourlyUsage = Array.from({ length: 24 }, (_, i) => {
-            const hour = i.toString().padStart(2, '0') + ':00';
-            const data = hourlyMap.get(hour);
             return {
-                hour,
-                usage: data ? data.total : 0, // Already in kWh
+                room,
+                current: latest[currentKey] as number,
+                power: latest[powerKey] as number,
+                avgPower,
+                maxPower,
+                contribution: totalPower > 0 ? ((latest[powerKey] as number) / totalPower) * 100 : 0,
             };
         });
 
-        // Create daily usage array (last 7 days)
-        const dailyUsage = Array.from(dailyMap.entries())
-            .sort(([a], [b]) => a.localeCompare(b))
-            .slice(-7)
-            .map(([date, data]) => ({
-                date,
-                day: new Date(date).toLocaleDateString('en-US', { weekday: 'short' }),
-                usage: data.total, // Already in kWh
-            }));
+        // Overall stats
+        const totalPowers = data.map(d => d.total_power || 0);
+        const avgTotalPower = totalPowers.reduce((a, b) => a + b, 0) / totalPowers.length;
+        const maxTotalPower = Math.max(...totalPowers);
 
-        const latestEntry = sortedData[sortedData.length - 1];
-        const currentUsage = latestEntry ? latestEntry.watt / 1000 : 0;
+        // Hourly usage from history
+        const hourlyMap = new Map<string, number[]>();
+        history.forEach(entry => {
+            const hour = new Date(entry.time).getHours().toString().padStart(2, '0') + ':00';
+            const existing = hourlyMap.get(hour) || [];
+            existing.push(entry.total_power || entry.watt || 0);
+            hourlyMap.set(hour, existing);
+        });
 
-        // Calculate daily total (kWh)
-        const today = new Date().toISOString().slice(0, 10);
-        const todayData = dailyMap.get(today);
-        const dailyTotal = todayData ? todayData.total : 0; // Already in kWh
+        const hourlyUsage = Array.from({ length: 24 }, (_, i) => {
+            const hour = i.toString().padStart(2, '0') + ':00';
+            const values = hourlyMap.get(hour) || [0];
+            return { hour, usage: values.reduce((a, b) => a + b, 0) / values.length / 1000 }; // Convert to kW
+        });
 
-        // Estimate monthly total
-        const monthlyTotal = dailyTotal * 30;
+        // Power trend (last 50 points)
+        const powerTrend = data.map(d => ({
+            time: new Date(d.time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+            power: d.total_power / 1000,
+            power1: d.power1 / 1000,
+            power2: d.power2 / 1000,
+            power3: d.power3 / 1000,
+        }));
+
+        // Room distribution
+        const roomDistribution = [latest.power1, latest.power2, latest.power3];
 
         return {
+            latest,
+            rooms,
+            totalPower,
+            avgTotalPower,
+            maxTotalPower,
+            voltage: latest.volt,
+            temperature: latest.temperature,
+            humidity: latest.humidity,
             hourlyUsage,
-            dailyUsage,
-            currentUsage,
-            dailyTotal,
-            monthlyTotal,
-            voltData,
-            ampsData,
-            tempData,
-            humidityData,
-            wattData,
+            powerTrend,
+            roomDistribution,
         };
-    }, [historyData]);
+    }, [sensorData, historyData]);
 
-    const energyData = useMemo(() => ({
-        currentUsage: processedData.currentUsage,
-        dailyUsage: processedData.dailyTotal,
-        monthlyUsage: processedData.monthlyTotal,
-        estimatedBill: processedData.monthlyTotal * 13.06, // Rs. per kWh (average rate)
-        peakHourUsage: 1.8,
-        offPeakUsage: 0.7,
-        carbonFootprint: processedData.monthlyTotal * 0.4062, // kg CO2 per kWh
-        appliances: [
-            { name: 'Refrigerator', usage: 0.8, status: 'active', hours: 24 },
-            { name: 'Air Conditioner', usage: 1.2, status: 'active', hours: 8 },
-            { name: 'Lights', usage: 0.3, status: 'active', hours: 6 },
-            { name: 'TV', usage: 0.2, status: 'active', hours: 4 },
-            { name: 'Washing Machine', usage: 0.4, status: 'idle', hours: 2 },
-            { name: 'Water Heater', usage: 2.1, status: 'idle', hours: 1 },
-        ],
-        weeklyUsageTrend: processedData.dailyUsage,
-        monthlyTrend: [
-            { month: 'Jan', usage: 1150 },
-            { month: 'Feb', usage: 1100 },
-            { month: 'Mar', usage: 1220 },
-            { month: 'Apr', usage: 1180 },
-            { month: 'May', usage: 1250 },
-            { month: 'Jun', usage: processedData.monthlyTotal },
-        ],
-        forecast: [
-            { period: 'Week 1', predicted: 310, confidence: 95 },
-            { period: 'Week 2', predicted: 325, confidence: 92 },
-            { period: 'Week 3', predicted: 318, confidence: 88 },
-            { period: 'Week 4', predicted: 330, confidence: 85 },
-        ],
-        hourlyUsage: processedData.hourlyUsage,
-    }), [processedData]);
-
-    const weeklyUsageChartData = useMemo(() => ({
-        labels: energyData.weeklyUsageTrend.map((entry) => entry.day || 'N/A'),
-        datasets: [
-            {
-                label: 'Consumption (kWh)',
-                data: energyData.weeklyUsageTrend.map((entry) => entry.usage || 0),
-                borderColor: '#007AFF',
-                backgroundColor: 'rgba(0, 122, 255, 0.1)',
-                tension: 0.4,
-                fill: true,
-                borderWidth: 2,
-            },
-        ],
-    }), [energyData.weeklyUsageTrend]);
-
-    const applianceUsageChartData = useMemo(() => ({
-        labels: energyData.appliances.map((appliance) => appliance.name),
-        datasets: [
-            {
-                label: 'Usage (kW)',
-                data: energyData.appliances.map((appliance) => appliance.usage),
-                backgroundColor: '#007AFF',
-                borderRadius: 8,
-            },
-        ],
-    }), [energyData.appliances]);
-
-    const weeklyUsageChartOptions = useMemo(() => ({
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: {
-                position: 'top' as const,
-                labels: {
-                    font: {
-                        family: '-apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif',
-                        size: 12,
-                    },
-                    color: '#1d1d1f',
-                    usePointStyle: true,
-                    padding: 15,
-                },
-            },
-        },
-        scales: {
-            y: {
-                beginAtZero: true,
-                grid: {
-                    color: 'rgba(0, 0, 0, 0.05)',
-                },
-                ticks: {
-                    font: {
-                        family: '-apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif',
-                        size: 11,
-                    },
-                    color: '#86868b',
-                },
-            },
-            x: {
-                grid: {
-                    display: false,
-                },
-                ticks: {
-                    font: {
-                        family: '-apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif',
-                        size: 11,
-                    },
-                    color: '#86868b',
-                },
-            },
-        },
-    }), []);
-
-    const applianceUsageChartOptions = useMemo(() => ({
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: { display: false },
-        },
-        scales: {
-            y: {
-                beginAtZero: true,
-                grid: {
-                    color: 'rgba(0, 0, 0, 0.05)',
-                },
-                ticks: {
-                    font: {
-                        family: '-apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif',
-                        size: 11,
-                    },
-                    color: '#86868b',
-                },
-            },
-            x: {
-                grid: {
-                    display: false,
-                },
-                ticks: {
-                    font: {
-                        family: '-apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif',
-                        size: 11,
-                    },
-                    color: '#86868b',
-                },
-            },
-        },
-    }), []);
-
-    const monthlyTrendChartData = useMemo(() => ({
-        labels: energyData.monthlyTrend.map((entry) => entry.month),
-        datasets: [
-            {
-                label: 'Monthly Usage (kWh)',
-                data: energyData.monthlyTrend.map((entry) => entry.usage),
-                borderColor: '#34C759',
-                backgroundColor: 'rgba(52, 199, 89, 0.1)',
-                tension: 0.4,
-                fill: true,
-                borderWidth: 2,
-            },
-        ],
-    }), [energyData.monthlyTrend]);
-
-    const forecastChartData = useMemo(() => ({
-        labels: energyData.forecast.map((entry) => entry.period),
-        datasets: [
-            {
-                label: 'Predicted Usage (kWh)',
-                data: energyData.forecast.map((entry) => entry.predicted),
-                borderColor: '#FF9500',
-                backgroundColor: 'rgba(255, 149, 0, 0.1)',
-                borderDash: [5, 5],
-                tension: 0.4,
-                fill: true,
-                borderWidth: 2,
-            },
-        ],
-    }), [energyData.forecast]);
-
-    const hourlyUsageChartData = useMemo(() => ({
-        labels: energyData.hourlyUsage.map((entry) => entry.hour),
-        datasets: [
-            {
-                label: 'Usage (kW)',
-                data: energyData.hourlyUsage.map((entry) => entry.usage),
-                backgroundColor: '#5856D6',
-                borderRadius: 8,
-            },
-        ],
-    }), [energyData.hourlyUsage]);
-
-    const voltChartData = useMemo(() => ({
-        labels: processedData.voltData.map((entry) => entry.time),
-        datasets: [
-            {
-                label: 'Voltage (V)',
-                data: processedData.voltData.map((entry) => entry.value),
-                borderColor: '#FF3B30',
-                backgroundColor: 'rgba(255, 59, 48, 0.1)',
-                tension: 0.4,
-                fill: false,
-                borderWidth: 2,
-            },
-        ],
-    }), [processedData.voltData]);
-
-    const ampsChartData = useMemo(() => ({
-        labels: processedData.ampsData.map((entry) => entry.time),
-        datasets: [
-            {
-                label: 'Current (A)',
-                data: processedData.ampsData.map((entry) => entry.value),
-                borderColor: '#FF9500',
-                backgroundColor: 'rgba(255, 149, 0, 0.1)',
-                tension: 0.4,
-                fill: false,
-                borderWidth: 2,
-            },
-        ],
-    }), [processedData.ampsData]);
-
-    const wattChartData = useMemo(() => ({
-        labels: processedData.wattData?.map((entry) => entry.time) || [],
-        datasets: [
-            {
-                label: 'Power (kW)',
-                data: processedData.wattData?.map((entry) => entry.value) || [],
-                borderColor: '#5856D6',
-                backgroundColor: 'rgba(88, 86, 214, 0.1)',
-                tension: 0.4,
-                fill: true,
-                borderWidth: 2,
-            },
-        ],
-    }), [processedData.wattData]);
-
-    const tempChartData = useMemo(() => ({
-        labels: processedData.tempData.map((entry) => entry.time),
-        datasets: [
-            {
-                label: 'Temperature (°C)',
-                data: processedData.tempData.map((entry) => entry.value),
-                borderColor: '#34C759',
-                backgroundColor: 'rgba(52, 199, 89, 0.1)',
-                tension: 0.4,
-                fill: false,
-                borderWidth: 2,
-            },
-        ],
-    }), [processedData.tempData]);
-
-    const humidityChartData = useMemo(() => ({
-        labels: processedData.humidityData.map((entry) => entry.time),
-        datasets: [
-            {
-                label: 'Humidity (%)',
-                data: processedData.humidityData.map((entry) => entry.value),
-                borderColor: '#007AFF',
-                backgroundColor: 'rgba(0, 122, 255, 0.1)',
-                tension: 0.4,
-                fill: false,
-                borderWidth: 2,
-            },
-        ],
-    }), [processedData.humidityData]);
-
+    // Chart configurations
     const chartOptions = useMemo(() => ({
         responsive: true,
         maintainAspectRatio: false,
@@ -454,11 +183,8 @@ export default function Dashboard() {
             legend: {
                 position: 'top' as const,
                 labels: {
-                    font: {
-                        family: '-apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif',
-                        size: 12,
-                    },
-                    color: '#1d1d1f',
+                    font: { family: 'system-ui', size: 12 },
+                    color: '#475569',
                     usePointStyle: true,
                     padding: 15,
                 },
@@ -467,30 +193,51 @@ export default function Dashboard() {
         scales: {
             y: {
                 beginAtZero: true,
-                grid: {
-                    color: 'rgba(0, 0, 0, 0.05)',
-                },
-                ticks: {
-                    font: {
-                        family: '-apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif',
-                        size: 11,
-                    },
-                    color: '#86868b',
-                },
+                grid: { color: 'rgba(0, 0, 0, 0.05)' },
+                ticks: { font: { family: 'system-ui', size: 11 }, color: '#64748b' },
             },
             x: {
-                grid: {
-                    display: false,
-                },
-                ticks: {
-                    font: {
-                        family: '-apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif',
-                        size: 11,
-                    },
-                    color: '#86868b',
-                },
+                grid: { display: false },
+                ticks: { font: { family: 'system-ui', size: 11 }, color: '#64748b' },
             },
         },
+    }), []);
+
+    const powerTrendData = useMemo(() => ({
+        labels: analytics.powerTrend.map(d => d.time),
+        datasets: [
+            { label: '🛋️ Living Room', data: analytics.powerTrend.map(d => d.power1), borderColor: '#22c55e', backgroundColor: 'rgba(34, 197, 94, 0.1)', tension: 0.4, fill: false, borderWidth: 2 },
+            { label: '🛏️ Bedroom', data: analytics.powerTrend.map(d => d.power2), borderColor: '#0ea5e9', backgroundColor: 'rgba(14, 165, 233, 0.1)', tension: 0.4, fill: false, borderWidth: 2 },
+            { label: '🍳 Kitchen', data: analytics.powerTrend.map(d => d.power3), borderColor: '#f97316', backgroundColor: 'rgba(249, 115, 22, 0.1)', tension: 0.4, fill: false, borderWidth: 2 },
+        ],
+    }), [analytics.powerTrend]);
+
+    const hourlyUsageData = useMemo(() => ({
+        labels: analytics.hourlyUsage.map(d => d.hour),
+        datasets: [{
+            label: 'Avg Power (kW)',
+            data: analytics.hourlyUsage.map(d => d.usage),
+            backgroundColor: 'rgba(99, 102, 241, 0.8)',
+            borderRadius: 6,
+        }],
+    }), [analytics.hourlyUsage]);
+
+    const roomDistributionData = useMemo(() => ({
+        labels: ROOMS.map(r => r.name),
+        datasets: [{
+            data: analytics.roomDistribution,
+            backgroundColor: ROOMS.map(r => r.color),
+            borderWidth: 0,
+        }],
+    }), [analytics.roomDistribution]);
+
+    const doughnutOptions = useMemo(() => ({
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { position: 'bottom' as const, labels: { padding: 20, usePointStyle: true } },
+        },
+        cutout: '65%',
     }), []);
 
     useEffect(() => {
@@ -500,32 +247,37 @@ export default function Dashboard() {
     }, [isLoaded, userId, router]);
 
     if (!isLoaded || !userId) {
-        return <div>Loading...</div>;
+        return (
+            <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+                <div className="animate-pulse text-slate-600">Loading...</div>
+            </div>
+        );
     }
+
+    // Calculate energy estimates
+    const dailyEnergykWh = (analytics.avgTotalPower / 1000) * 24;
+    const monthlyEnergykWh = dailyEnergykWh * 30;
+    const estimatedBill = monthlyEnergykWh * 13.06; // Sri Lanka avg rate
+    const carbonFootprint = monthlyEnergykWh * 0.4062;
 
     return (
         <div className="min-h-screen bg-slate-50">
-            <header className="border-b border-slate-200 bg-white">
-                <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
+            {/* Header */}
+            <header className="border-b border-slate-200 bg-white sticky top-0 z-50">
+                <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
                     <div className="flex items-center gap-6">
-                        <h1 className="text-2xl font-semibold text-slate-900">Energy Monitor</h1>
-                        <nav className="hidden md:flex items-center gap-4">
-                            <Link
-                                href="/dashboard"
-                                className="text-sm font-medium text-slate-900 transition hover:text-slate-900"
-                            >
+                        <div className="flex items-center gap-2">
+                            <span className="text-2xl">⚡</span>
+                            <h1 className="text-xl font-bold text-slate-900">Energy Monitor</h1>
+                        </div>
+                        <nav className="hidden md:flex items-center gap-1">
+                            <Link href="/dashboard" className="px-4 py-2 text-sm font-medium text-slate-900 bg-slate-100 rounded-lg">
                                 Dashboard
                             </Link>
-                            <Link
-                                href="/live"
-                                className="text-sm font-medium text-slate-700 transition hover:text-slate-900"
-                            >
+                            <Link href="/live" className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition">
                                 Live Monitor
                             </Link>
-                            <Link
-                                href="/history"
-                                className="text-sm font-medium text-slate-700 transition hover:text-slate-900"
-                            >
+                            <Link href="/history" className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition">
                                 History
                             </Link>
                         </nav>
@@ -536,282 +288,268 @@ export default function Dashboard() {
                     </div>
                 </div>
             </header>
-            <main className="mx-auto max-w-7xl py-8 px-6">
-                <div className="space-y-8">
-                    <EnergyDashboard />
 
-                    {/* Bill Payment Portal Section */}
-                    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <main className="mx-auto max-w-7xl py-6 px-6">
+                <div className="space-y-6">
+                    {/* Page Title */}
+                    <div>
+                        <h2 className="text-2xl font-bold text-slate-900">Home Energy Dashboard</h2>
+                        <p className="text-slate-600 mt-1">Real-time monitoring of your home's energy consumption</p>
+                    </div>
+
+                    {/* Error States */}
+                    {(sensorError || historyError) && (
+                        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                            ⚠️ Having trouble connecting to sensors. Data may be outdated.
+                        </div>
+                    )}
+
+                    {/* Quick Stats */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2.5 rounded-xl bg-blue-50">
+                                    <span className="text-xl">⚡</span>
+                                </div>
+                                <div>
+                                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Total Power</p>
+                                    <p className="text-2xl font-bold text-slate-900">{formatNumber(analytics.totalPower, 0)}</p>
+                                    <p className="text-xs text-slate-500">Watts</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2.5 rounded-xl bg-purple-50">
+                                    <span className="text-xl">🔌</span>
+                                </div>
+                                <div>
+                                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Voltage</p>
+                                    <p className="text-2xl font-bold text-slate-900">{formatNumber(analytics.voltage, 1)}</p>
+                                    <p className="text-xs text-slate-500">Volts</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2.5 rounded-xl bg-red-50">
+                                    <span className="text-xl">🌡️</span>
+                                </div>
+                                <div>
+                                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Temperature</p>
+                                    <p className="text-2xl font-bold text-slate-900">{formatNumber(analytics.temperature, 1)}</p>
+                                    <p className="text-xs text-slate-500">°C</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2.5 rounded-xl bg-cyan-50">
+                                    <span className="text-xl">💧</span>
+                                </div>
+                                <div>
+                                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Humidity</p>
+                                    <p className="text-2xl font-bold text-slate-900">{formatNumber(analytics.humidity, 1)}</p>
+                                    <p className="text-xs text-slate-500">%</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Room Cards */}
+                    <section>
+                        <h3 className="text-lg font-semibold text-slate-900 mb-4">🏠 Room-wise Consumption</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {analytics.rooms.map(({ room, current, power, avgPower, maxPower, contribution }) => (
+                                <div key={room.id} className={`rounded-2xl border ${room.borderColor} ${room.bgColor} p-5 shadow-sm transition hover:shadow-md`}>
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-2xl">{room.icon}</span>
+                                            <h4 className={`font-semibold ${room.textColor}`}>{room.name}</h4>
+                                        </div>
+                                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${room.bgColor} ${room.textColor}`}>
+                                            {formatNumber(contribution, 1)}%
+                                        </span>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <p className="text-xs text-slate-500">Current</p>
+                                            <p className={`text-xl font-bold ${room.textColor}`}>{formatNumber(current)} A</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs text-slate-500">Power</p>
+                                            <p className={`text-xl font-bold ${room.textColor}`}>{formatNumber(power, 0)} W</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs text-slate-500">Average</p>
+                                            <p className="text-sm font-medium text-slate-700">{formatNumber(avgPower, 0)} W</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs text-slate-500">Peak</p>
+                                            <p className="text-sm font-medium text-slate-700">{formatNumber(maxPower, 0)} W</p>
+                                        </div>
+                                    </div>
+                                    {/* Progress bar */}
+                                    <div className="mt-4">
+                                        <div className="bg-white/50 rounded-full h-2 overflow-hidden">
+                                            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${contribution}%`, backgroundColor: room.color }} />
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </section>
+
+                    {/* Bill Payment Portal */}
+                    <div className="rounded-2xl border border-slate-200 bg-gradient-to-r from-blue-500 to-indigo-600 p-6 shadow-sm text-white">
                         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                             <div>
-                                <h3 className="text-lg font-semibold text-slate-900">Pay Your Electricity Bill</h3>
-                                <p className="mt-1 text-sm text-slate-600">Quick access to CEB and LECO payment portals</p>
+                                <h3 className="text-lg font-semibold">💳 Pay Your Electricity Bill</h3>
+                                <p className="mt-1 text-sm text-blue-100">Quick access to CEB and LECO payment portals</p>
                             </div>
                             <div className="flex flex-wrap gap-3">
-                                <a
-                                    href="https://payment.ceb.lk/instantpay"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-2 rounded-full bg-blue-500 px-6 py-2.5 text-sm font-medium text-white transition hover:bg-blue-600"
-                                >
-                                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                                    </svg>
-                                    Pay CEB Bill
+                                <a href="https://payment.ceb.lk/instantpay" target="_blank" rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-medium text-blue-600 transition hover:bg-blue-50">
+                                    Pay CEB Bill →
                                 </a>
-                                <a
-                                    href="https://ipg.leco.lk/"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-2 rounded-full bg-green-500 px-6 py-2.5 text-sm font-medium text-white transition hover:bg-green-600"
-                                >
-                                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                                    </svg>
-                                    Pay LECO Bill
+                                <a href="https://ipg.leco.lk/" target="_blank" rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-2 rounded-full bg-white/20 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-white/30 border border-white/30">
+                                    Pay LECO Bill →
                                 </a>
                             </div>
                         </div>
                     </div>
 
-                    {/* Enhanced KPI Cards */}
-                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-                        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-                            <div className="flex items-center gap-4">
-                                <div className="flex-shrink-0">
-                                    <div className="rounded-full bg-blue-50 p-3">
-                                        <svg className="h-6 w-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                                        </svg>
-                                    </div>
-                                </div>
-                                <div className="flex-1">
-                                    <p className="text-sm font-medium text-slate-600">Current Usage</p>
-                                    <p className="mt-1 text-2xl font-semibold text-slate-900">{energyData.currentUsage.toFixed(3)} kW</p>
-                                </div>
+                    {/* Energy Estimates */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+                            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Est. Daily Usage</p>
+                            <p className="text-2xl font-bold text-slate-900 mt-2">{formatNumber(dailyEnergykWh, 1)}</p>
+                            <p className="text-xs text-slate-500">kWh/day</p>
+                        </div>
+                        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+                            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Est. Monthly Usage</p>
+                            <p className="text-2xl font-bold text-slate-900 mt-2">{formatNumber(monthlyEnergykWh, 0)}</p>
+                            <p className="text-xs text-slate-500">kWh/month</p>
+                        </div>
+                        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+                            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Est. Monthly Bill</p>
+                            <p className="text-2xl font-bold text-amber-600 mt-2">Rs. {formatNumber(estimatedBill, 0)}</p>
+                            <p className="text-xs text-slate-500">@ Rs.13.06/kWh</p>
+                        </div>
+                        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+                            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Carbon Footprint</p>
+                            <p className="text-2xl font-bold text-green-600 mt-2">{formatNumber(carbonFootprint, 1)}</p>
+                            <p className="text-xs text-slate-500">kg CO₂/month</p>
+                        </div>
+                    </div>
+
+                    {/* Charts Row 1 */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                            <h3 className="text-lg font-semibold text-slate-900">📊 Power Consumption by Room</h3>
+                            <p className="text-sm text-slate-600 mb-4">Real-time power usage across rooms</p>
+                            <div className="h-72">
+                                <Line data={powerTrendData} options={chartOptions} />
                             </div>
                         </div>
-                        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-                            <div className="flex items-center gap-4">
-                                <div className="flex-shrink-0">
-                                    <div className="rounded-full bg-green-50 p-3">
-                                        <svg className="h-6 w-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                        </svg>
-                                    </div>
-                                </div>
-                                <div className="flex-1">
-                                    <p className="text-sm font-medium text-slate-600">Daily Usage</p>
-                                    <p className="mt-1 text-2xl font-semibold text-slate-900">{energyData.dailyUsage.toFixed(3)} kWh</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-                            <div className="flex items-center gap-4">
-                                <div className="flex-shrink-0">
-                                    <div className="rounded-full bg-amber-50 p-3">
-                                        <svg className="h-6 w-6 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                        </svg>
-                                    </div>
-                                </div>
-                                <div className="flex-1">
-                                    <p className="text-sm font-medium text-slate-600">Estimated Bill</p>
-                                    <p className="mt-1 text-2xl font-semibold text-slate-900">Rs. {energyData.estimatedBill.toFixed(3)}</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-                            <div className="flex items-center gap-4">
-                                <div className="flex-shrink-0">
-                                    <div className="rounded-full bg-teal-50 p-3">
-                                        <svg className="h-6 w-6 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                        </svg>
-                                    </div>
-                                </div>
-                                <div className="flex-1">
-                                    <p className="text-sm font-medium text-slate-600">Carbon Footprint</p>
-                                    <p className="mt-1 text-2xl font-semibold text-slate-900">{energyData.carbonFootprint.toFixed(3)} kg</p>
-                                </div>
+                        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                            <h3 className="text-lg font-semibold text-slate-900">🥧 Power Distribution</h3>
+                            <p className="text-sm text-slate-600 mb-4">Current share by room</p>
+                            <div className="h-72">
+                                <Doughnut data={roomDistributionData} options={doughnutOptions} />
                             </div>
                         </div>
                     </div>
 
-                    {/* Hourly Usage & Forecast Section */}
-                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-                            <h3 className="text-lg font-semibold text-slate-900">24-Hour Usage Pattern</h3>
-                            <p className="mb-5 text-sm text-slate-600">Track your energy consumption throughout the day.</p>
+                    {/* Charts Row 2 */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                            <h3 className="text-lg font-semibold text-slate-900">⏰ 24-Hour Usage Pattern</h3>
+                            <p className="text-sm text-slate-600 mb-4">Average power consumption by hour</p>
                             <div className="h-72">
-                                <Bar data={hourlyUsageChartData} options={chartOptions} />
+                                <Bar data={hourlyUsageData} options={chartOptions} />
                             </div>
                         </div>
-                        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-                            <h3 className="text-lg font-semibold text-slate-900">4-Week Usage Forecast</h3>
-                            <p className="mb-5 text-sm text-slate-600">AI-powered prediction of upcoming energy consumption.</p>
-                            <div className="h-72">
-                                <Line data={forecastChartData} options={chartOptions} />
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Monthly Trend */}
-                    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-                        <h3 className="text-lg font-semibold text-slate-900">6-Month Usage Trend</h3>
-                        <p className="mb-5 text-sm text-slate-600">Long-term energy consumption patterns and trends.</p>
-                        <div className="h-80">
-                            <Line data={monthlyTrendChartData} options={chartOptions} />
-                        </div>
-                    </div>
-
-                    {/* Weekly & Appliance Charts */}
-                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-                            <h3 className="text-lg font-semibold text-slate-900">Weekly Consumption Trend</h3>
-                            <p className="mb-5 text-sm text-slate-600">Track how your energy usage changes day by day.</p>
-                            <div className="h-72">
-                                <Line data={weeklyUsageChartData} options={weeklyUsageChartOptions} />
-                            </div>
-                        </div>
-                        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-                            <h3 className="text-lg font-semibold text-slate-900">Appliance Breakdown</h3>
-                            <p className="mb-5 text-sm text-slate-600">Identify high-consuming appliances in your home.</p>
-                            <div className="h-72">
-                                <Bar data={applianceUsageChartData} options={applianceUsageChartOptions} />
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Additional Metrics Charts */}
-                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-                            <h3 className="text-lg font-semibold text-slate-900">Real-Time Power Consumption</h3>
-                            <p className="mb-5 text-sm text-slate-600">Live power usage over time (5-second intervals).</p>
-                            <div className="h-72">
-                                <Line data={wattChartData} options={chartOptions} />
-                            </div>
-                        </div>
-                        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-                            <h3 className="text-lg font-semibold text-slate-900">Voltage Trend</h3>
-                            <p className="mb-5 text-sm text-slate-600">Monitor voltage fluctuations over time.</p>
-                            <div className="h-72">
-                                <Line data={voltChartData} options={chartOptions} />
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-                            <h3 className="text-lg font-semibold text-slate-900">Current Trend</h3>
-                            <p className="mb-5 text-sm text-slate-600">Track current consumption patterns.</p>
-                            <div className="h-72">
-                                <Line data={ampsChartData} options={chartOptions} />
-                            </div>
-                        </div>
-                        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-                            <h3 className="text-lg font-semibold text-slate-900">Temperature Trend</h3>
-                            <p className="mb-5 text-sm text-slate-600">Environmental temperature monitoring.</p>
-                            <div className="h-72">
-                                <Line data={tempChartData} options={chartOptions} />
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-                            <h3 className="text-lg font-semibold text-slate-900">Humidity Trend</h3>
-                            <p className="mb-5 text-sm text-slate-600">Humidity levels over time.</p>
-                            <div className="h-72">
-                                <Line data={humidityChartData} options={chartOptions} />
-                            </div>
-                        </div>
-                        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-                            <h3 className="text-lg font-semibold text-slate-900">Data Quality</h3>
-                            <p className="mb-5 text-sm text-slate-600">Monitoring statistics from MongoDB.</p>
-                            <div className="grid grid-cols-2 gap-4 pt-6">
-                                <div className="text-center">
-                                    <p className="text-3xl font-bold text-blue-600">{historyData?.length || 0}</p>
-                                    <p className="mt-1 text-sm text-slate-600">Data Points</p>
+                        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                            <h3 className="text-lg font-semibold text-slate-900">📈 System Status</h3>
+                            <p className="text-sm text-slate-600 mb-4">Monitoring statistics</p>
+                            <div className="grid grid-cols-2 gap-6 py-4">
+                                <div className="text-center p-4 bg-slate-50 rounded-xl">
+                                    <p className="text-3xl font-bold text-blue-600">{sensorData?.length || 0}</p>
+                                    <p className="text-sm text-slate-600 mt-1">Live Data Points</p>
                                 </div>
-                                <div className="text-center">
+                                <div className="text-center p-4 bg-slate-50 rounded-xl">
                                     <p className="text-3xl font-bold text-green-600">5s</p>
-                                    <p className="mt-1 text-sm text-slate-600">Update Interval</p>
+                                    <p className="text-sm text-slate-600 mt-1">Update Interval</p>
+                                </div>
+                                <div className="text-center p-4 bg-slate-50 rounded-xl">
+                                    <p className="text-3xl font-bold text-purple-600">{historyData?.length || 0}</p>
+                                    <p className="text-sm text-slate-600 mt-1">24h History</p>
+                                </div>
+                                <div className="text-center p-4 bg-slate-50 rounded-xl">
+                                    <p className="text-3xl font-bold text-amber-600">3</p>
+                                    <p className="text-sm text-slate-600 mt-1">Rooms Monitored</p>
                                 </div>
                             </div>
-                            <div className="mt-6">
-                                {historyError ? (
-                                    <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
-                                        Error loading data from MongoDB
-                                    </div>
-                                ) : (
-                                    <div className="rounded-lg bg-green-50 p-3 text-sm text-green-700">
-                                        ✓ Connected to MongoDB
-                                    </div>
-                                )}
+                            <div className={`mt-4 rounded-xl p-3 text-sm ${sensorError ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+                                {sensorError ? '⚠️ Connection issue' : '✓ Connected to MongoDB'}
                             </div>
                         </div>
                     </div>
 
-                    {/* Additional Metrics Charts - OLD VERSION TO REMOVE */}
-                    <div className="hidden">
-                        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-                            <h3 className="text-lg font-semibold text-slate-900">Voltage Trend</h3>
-                            <p className="mb-5 text-sm text-slate-600">Monitor voltage fluctuations over time.</p>
-                            <div className="h-72">
-                                <Line data={voltChartData} options={chartOptions} />
-                            </div>
+                    {/* Room Details Table */}
+                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div className="px-6 py-5 border-b border-slate-200">
+                            <h3 className="text-lg font-semibold text-slate-900">📋 Room Details</h3>
+                            <p className="text-sm text-slate-600 mt-1">Current energy consumption by room</p>
                         </div>
-                        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-                            <h3 className="text-lg font-semibold text-slate-900">Current Trend</h3>
-                            <p className="mb-5 text-sm text-slate-600">Track current consumption patterns.</p>
-                            <div className="h-72">
-                                <Line data={ampsChartData} options={chartOptions} />
-                            </div>
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full divide-y divide-slate-200">
+                                <thead className="bg-slate-50">
+                                    <tr>
+                                        <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Room</th>
+                                        <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Current (A)</th>
+                                        <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Power (W)</th>
+                                        <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Avg Power (W)</th>
+                                        <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Peak Power (W)</th>
+                                        <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Share</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-200">
+                                    {analytics.rooms.map(({ room, current, power, avgPower, maxPower, contribution }) => (
+                                        <tr key={room.id} className="hover:bg-slate-50 transition">
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xl">{room.icon}</span>
+                                                    <span className="font-medium text-slate-900">{room.name}</span>
+                                                </div>
+                                            </td>
+                                            <td className={`px-6 py-4 font-medium ${room.textColor}`}>{formatNumber(current)}</td>
+                                            <td className={`px-6 py-4 font-medium ${room.textColor}`}>{formatNumber(power, 0)}</td>
+                                            <td className="px-6 py-4 text-slate-700">{formatNumber(avgPower, 0)}</td>
+                                            <td className="px-6 py-4 text-slate-700">{formatNumber(maxPower, 0)}</td>
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-20 bg-slate-200 rounded-full h-2">
+                                                        <div className="h-2 rounded-full" style={{ width: `${contribution}%`, backgroundColor: room.color }} />
+                                                    </div>
+                                                    <span className="text-sm font-medium text-slate-700">{formatNumber(contribution, 1)}%</span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
 
-                    <div className="hidden">
-                        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-                            <h3 className="text-lg font-semibold text-slate-900">Temperature Trend</h3>
-                            <p className="mb-5 text-sm text-slate-600">Environmental temperature monitoring.</p>
-                            <div className="h-72">
-                                <Line data={tempChartData} options={chartOptions} />
-                            </div>
-                        </div>
-                        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-                            <h3 className="text-lg font-semibold text-slate-900">Humidity Trend</h3>
-                            <p className="mb-5 text-sm text-slate-600">Humidity levels over time.</p>
-                            <div className="h-72">
-                                <Line data={humidityChartData} options={chartOptions} />
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                        <div className="px-6 py-5">
-                            <h3 className="text-lg font-semibold text-slate-900">Appliance Usage Details</h3>
-                            <p className="mt-1 text-sm text-slate-600">Current energy consumption by appliance.</p>
-                        </div>
-                        <ul className="divide-y divide-slate-200">
-                            {energyData.appliances.map((appliance, index) => (
-                                <li key={index} className="px-6 py-4 transition hover:bg-slate-50">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <div className={`h-2 w-2 rounded-full ${appliance.status === 'active' ? 'bg-green-500' : 'bg-slate-400'}`} />
-                                            <div>
-                                                <div className="text-sm font-medium text-slate-900">{appliance.name}</div>
-                                                <div className="text-xs text-slate-600">{appliance.hours}h/day · {appliance.status}</div>
-                                            </div>
-                                        </div>
-                                        <div className="text-sm font-semibold text-blue-600">{appliance.usage} kW</div>
-                                    </div>
-                                </li>
-                            ))}
-                        </ul>
+                    {/* Footer */}
+                    <div className="text-center py-6 text-sm text-slate-500">
+                        <p>🏠 Home Energy Monitoring System • Data updates every 5 seconds</p>
                     </div>
                 </div>
-            </main >
-        </div >
+            </main>
+        </div>
     );
 }
