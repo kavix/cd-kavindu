@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import HealthCheck from '@/components/HealthCheck';
+import SensorAlerts from '@/components/SensorAlerts';
+import ReportGenerator from '@/components/ReportGenerator';
 import useSWR from 'swr';
 import {
     Chart as ChartJS,
@@ -268,7 +270,7 @@ export default function Dashboard() {
                     <div className="flex items-center gap-6">
                         <div className="flex items-center gap-2">
                             <span className="text-2xl">⚡</span>
-                            <h1 className="text-xl font-bold text-slate-900">Energy Monitor</h1>
+                            <h1 className="text-xl font-bold bg-gradient-to-r from-orange-500 to-rose-500 bg-clip-text text-transparent">Elektrum</h1>
                         </div>
                         <nav className="hidden md:flex items-center gap-1">
                             <Link href="/dashboard" className="px-4 py-2 text-sm font-medium text-slate-900 bg-slate-100 rounded-lg">
@@ -296,6 +298,11 @@ export default function Dashboard() {
                         <h2 className="text-2xl font-bold text-slate-900">Home Energy Dashboard</h2>
                         <p className="text-slate-600 mt-1">Real-time monitoring of your home's energy consumption</p>
                     </div>
+
+                    {/* Sensor Alerts */}
+                    {analytics.latest && (
+                        <SensorAlerts sensorData={analytics.latest} enableBrowserNotifications={true} />
+                    )}
 
                     {/* Error States */}
                     {(sensorError || historyError) && (
@@ -400,22 +407,28 @@ export default function Dashboard() {
                         </div>
                     </section>
 
-                    {/* Bill Payment Portal */}
-                    <div className="rounded-2xl border border-slate-200 bg-gradient-to-r from-blue-500 to-indigo-600 p-6 shadow-sm text-white">
-                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                            <div>
-                                <h3 className="text-lg font-semibold">💳 Pay Your Electricity Bill</h3>
-                                <p className="mt-1 text-sm text-blue-100">Quick access to CEB and LECO payment portals</p>
-                            </div>
-                            <div className="flex flex-wrap gap-3">
-                                <a href="https://payment.ceb.lk/instantpay" target="_blank" rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-medium text-blue-600 transition hover:bg-blue-50">
-                                    Pay CEB Bill →
-                                </a>
-                                <a href="https://ipg.leco.lk/" target="_blank" rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-2 rounded-full bg-white/20 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-white/30 border border-white/30">
-                                    Pay LECO Bill →
-                                </a>
+                    {/* Report Generator & Bill Payment */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {/* Report Generator */}
+                        <ReportGenerator />
+
+                        {/* Bill Payment Portal */}
+                        <div className="rounded-2xl border border-slate-200 bg-gradient-to-r from-blue-500 to-indigo-600 p-6 shadow-sm text-white">
+                            <div className="flex flex-col gap-4">
+                                <div>
+                                    <h3 className="text-lg font-semibold">💳 Pay Your Electricity Bill</h3>
+                                    <p className="mt-1 text-sm text-blue-100">Quick access to CEB and LECO payment portals</p>
+                                </div>
+                                <div className="flex flex-wrap gap-3">
+                                    <a href="https://payment.ceb.lk/instantpay" target="_blank" rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-medium text-blue-600 transition hover:bg-blue-50">
+                                        Pay CEB Bill →
+                                    </a>
+                                    <a href="https://ipg.leco.lk/" target="_blank" rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-2 rounded-full bg-white/20 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-white/30 border border-white/30">
+                                        Pay LECO Bill →
+                                    </a>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -546,7 +559,7 @@ export default function Dashboard() {
 
                     {/* Footer */}
                     <div className="text-center py-6 text-sm text-slate-500">
-                        <p>🏠 Home Energy Monitoring System • Data updates every 5 seconds</p>
+                        <p>⚡ Elektrum - Where Energy Meets Intelligence • Data updates every 5 seconds</p>
                     </div>
                 </div>
             </main>

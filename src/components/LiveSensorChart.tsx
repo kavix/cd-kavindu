@@ -3,6 +3,7 @@
 import useSWR from 'swr';
 import { format } from 'date-fns';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import SensorAlerts from './SensorAlerts';
 
 // Standard fetcher for SWR
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
@@ -150,6 +151,9 @@ export default function LiveSensorChart() {
 
     return (
         <div className="space-y-8">
+            {/* Sensor Alerts */}
+            <SensorAlerts sensorData={latest} enableBrowserNotifications={true} />
+
             {/* Header Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <SummaryCard

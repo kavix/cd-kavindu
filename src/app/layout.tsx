@@ -14,13 +14,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Energy Monitor",
-  description: "Monitor your home's energy usage",
+  title: "Elektrum",
+  description: "Where Energy Meets Intelligence - Monitor your home's energy usage",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Voltura",
+    title: "Elektrum",
   },
   formatDetection: {
     telephone: false,

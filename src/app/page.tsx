@@ -43,10 +43,10 @@ export default function Home() {
             <div className="relative z-10">
               <header className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between border-b border-slate-100">
                 <div className="flex items-center gap-3">
-                  <div className="h-9 w-9 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
-                    <span className="text-white font-semibold text-sm">EM</span>
+                  <div className="h-9 w-9 rounded-full bg-gradient-to-br from-orange-500 to-rose-500 flex items-center justify-center">
+                    <span className="text-white font-semibold text-sm">⚡</span>
                   </div>
-                  <span className="text-slate-900 font-medium tracking-tight text-sm">Energy Monitor</span>
+                  <span className="bg-gradient-to-r from-orange-500 to-rose-500 bg-clip-text text-transparent font-semibold tracking-tight text-sm">Elektrum</span>
                 </div>
                 <nav className="hidden md:flex items-center gap-8 text-sm font-normal text-slate-600">
                   <a href="#features" className="transition hover:text-slate-900">Features</a>
@@ -215,7 +215,7 @@ export default function Home() {
             <div className="max-w-4xl mx-auto px-6 text-center">
               <h2 className="text-4xl font-semibold text-slate-900">Ready to see your home&apos;s full energy potential?</h2>
               <p className="mt-6 text-xl text-slate-600">
-                Join thousands of households who trust Energy Monitor to reveal actionable insights, prevent costly surprises, and stay ahead of peak rates.
+                Join thousands of households who trust Elektrum to reveal actionable insights, prevent costly surprises, and stay ahead of peak rates.
               </p>
               <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
                 <Link

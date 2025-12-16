@@ -26,7 +26,10 @@ export default function LiveMonitor() {
             <header className="border-b border-slate-200 bg-white">
                 <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
                     <div className="flex items-center gap-6">
-                        <h1 className="text-2xl font-semibold text-slate-900">Energy Monitor</h1>
+                        <div className="flex items-center gap-2">
+                            <span className="text-xl">⚡</span>
+                            <h1 className="text-2xl font-semibold bg-gradient-to-r from-orange-500 to-rose-500 bg-clip-text text-transparent">Elektrum</h1>
+                        </div>
                         <nav className="hidden md:flex items-center gap-4">
                             <Link
                                 href="/dashboard"

@@ -1,7 +1,7 @@
 {
-    "name": "Voltura Energy Monitor",
-    "short_name": "Voltura",
-    "description": "Monitor your energy consumption in real-time",
+    "name": "Elektrum - Energy Monitor",
+    "short_name": "Elektrum",
+    "description": "Where Energy Meets Intelligence - Monitor your energy consumption in real-time",
     "start_url": "/",
     "display": "standalone",
     "background_color": "#ffffff",
