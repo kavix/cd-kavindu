@@ -169,7 +169,7 @@ export default function HistoryPage() {
             </div>
             <button
               type="button"
-              onClick={handleFetch}
+              onClick={() => handleFetch()}
               disabled={loading}
               className="inline-flex items-center justify-center rounded-full bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
             >
