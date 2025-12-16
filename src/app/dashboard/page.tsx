@@ -22,7 +22,13 @@ import { Line, Bar } from 'react-chartjs-2';
 
 type HistoryEntry = {
     volt: number;
-    amps: number;
+    current1: number;
+    current2: number;
+    current3: number;
+    power1: number;
+    power2: number;
+    power3: number;
+    total_power: number;
     watt: number;
     temperature: number;
     humidity: number;
@@ -128,7 +134,8 @@ export default function Dashboard() {
             if (shouldInclude) {
                 const timeLabel = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
                 voltData.push({ time: timeLabel, value: entry.volt });
-                ampsData.push({ time: timeLabel, value: entry.amps });
+                const ampsSum = (entry.current1 || 0) + (entry.current2 || 0) + (entry.current3 || 0);
+                ampsData.push({ time: timeLabel, value: ampsSum });
                 tempData.push({ time: timeLabel, value: entry.temperature });
                 humidityData.push({ time: timeLabel, value: entry.humidity });
                 wattData.push({ time: timeLabel, value: entry.watt / 1000 }); // Convert to kW

@@ -3,7 +3,7 @@ import { MongoClient } from 'mongodb';
 
 const uri = 'mongodb+srv://blacky:2419624196@voltura.vl2m5kl.mongodb.net/volData?retryWrites=true&w=majority';
 const dbName = 'volData';
-const collectionName = 'sensors';
+const collectionName = 'finalVolData';
 
 let client: MongoClient | null = null;
 
@@ -29,7 +29,6 @@ export async function GET() {
 
     // Reverse so the graph draws left-to-right (oldest to newest)
     const sortedData = data.reverse().map((item: any) => {
-      // Handle MongoDB $date format
       let timeValue: string;
       if (item.time instanceof Date) {
         timeValue = item.time.toISOString();
@@ -42,14 +41,20 @@ export async function GET() {
       }
 
       return {
-        _id: item._id.toString(), // Fix ObjectId for JSON
-        volt: item.volt || 0,
-        amps: item.amps || 0,
-        watt: item.watt || 0,
-        temperature: item.temperature || 0,
-        humidity: item.humidity || 0,
+        _id: item._id?.toString?.() ?? String(item._id ?? ''),
+        volt: item.volt ?? 0,
+        current1: item.current1 ?? 0,
+        current2: item.current2 ?? 0,
+        current3: item.current3 ?? 0,
+        power1: item.power1 ?? 0,
+        power2: item.power2 ?? 0,
+        power3: item.power3 ?? 0,
+        total_power: item.total_power ?? item.watt ?? 0,
+        watt: item.watt ?? item.total_power ?? 0,
+        temperature: item.temperature ?? 0,
+        humidity: item.humidity ?? 0,
         time: timeValue,
-      };
+      } as const;
     });
 
     return NextResponse.json(sortedData);

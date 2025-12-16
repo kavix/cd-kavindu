@@ -11,7 +11,13 @@ import HistoryChart from '@/components/HistoryChart';
 
 type HistoryEntry = {
   volt: number;
-  amps: number;
+  current1: number;
+  current2: number;
+  current3: number;
+  power1: number;
+  power2: number;
+  power3: number;
+  total_power: number;
   watt: number;
   temperature?: number;
   humidity?: number;
@@ -40,8 +46,16 @@ export default function HistoryPage() {
       entries.map((item) => ({
         time: new Date(item.time).toLocaleString(),
         volt: item.volt,
-        amps: item.amps,
+        current1: item.current1,
+        current2: item.current2,
+        current3: item.current3,
+        power1: item.power1,
+        power2: item.power2,
+        power3: item.power3,
+        total_power: item.total_power,
         watt: item.watt,
+        temperature: item.temperature,
+        humidity: item.humidity,
       })),
     [entries],
   );
@@ -257,24 +271,23 @@ export default function HistoryPage() {
               <table className="min-w-full divide-y divide-slate-200">
                 <thead className="bg-slate-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Time
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Voltage (V)
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Current (A)
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Power (W)
-                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Time</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Voltage (V)</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">🛋️ Living Room (A)</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">🛏️ Bedroom (A)</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">🍳 Kitchen (A)</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">🛋️ Living Room (W)</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">🛏️ Bedroom (W)</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">🍳 Kitchen (W)</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Total Power (W)</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">🌡️ Temp (°C)</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">💧 Humidity (%)</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
                   {rows.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="px-6 py-6 text-center text-sm text-slate-500">
+                      <td colSpan={11} className="px-6 py-6 text-center text-sm text-slate-500">
                         {loading ? 'Fetching history...' : 'No records yet. Run a filter to see data.'}
                       </td>
                     </tr>
@@ -283,8 +296,15 @@ export default function HistoryPage() {
                       <tr key={`${row.time}-${idx}`} className="hover:bg-slate-50">
                         <td className="whitespace-nowrap px-6 py-3 text-sm text-slate-900">{row.time}</td>
                         <td className="whitespace-nowrap px-6 py-3 text-sm text-slate-900">{row.volt}</td>
-                        <td className="whitespace-nowrap px-6 py-3 text-sm text-slate-900">{row.amps}</td>
-                        <td className="whitespace-nowrap px-6 py-3 text-sm text-slate-900">{row.watt}</td>
+                        <td className="whitespace-nowrap px-6 py-3 text-sm text-green-700">{row.current1}</td>
+                        <td className="whitespace-nowrap px-6 py-3 text-sm text-sky-700">{row.current2}</td>
+                        <td className="whitespace-nowrap px-6 py-3 text-sm text-orange-700">{row.current3}</td>
+                        <td className="whitespace-nowrap px-6 py-3 text-sm text-green-700">{row.power1}</td>
+                        <td className="whitespace-nowrap px-6 py-3 text-sm text-sky-700">{row.power2}</td>
+                        <td className="whitespace-nowrap px-6 py-3 text-sm text-orange-700">{row.power3}</td>
+                        <td className="whitespace-nowrap px-6 py-3 text-sm font-semibold text-slate-900">{row.total_power}</td>
+                        <td className="whitespace-nowrap px-6 py-3 text-sm text-slate-900">{row.temperature}</td>
+                        <td className="whitespace-nowrap px-6 py-3 text-sm text-slate-900">{row.humidity}</td>
                       </tr>
                     ))
                   )}

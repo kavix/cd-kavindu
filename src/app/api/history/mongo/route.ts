@@ -3,7 +3,7 @@ import { MongoClient } from 'mongodb';
 
 const uri = 'mongodb+srv://blacky:2419624196@voltura.vl2m5kl.mongodb.net/volData?retryWrites=true&w=majority';
 const dbName = 'volData';
-const collectionName = 'sensors';
+const collectionName = 'finalVolData';
 
 let client: MongoClient | null = null;
 
@@ -52,14 +52,21 @@ export async function GET(req: Request) {
         timeValue = new Date().toISOString();
       }
 
-      return {
-        volt: doc.volt || 0,
-        amps: doc.amps || 0,
-        watt: doc.watt || 0,
-        temperature: doc.temperature || 0,
-        humidity: doc.humidity || 0,
-        time: timeValue,
-      };
+        return {
+          _id: doc._id?.toString?.() ?? String(doc._id ?? ''),
+          volt: doc.volt ?? 0,
+          current1: doc.current1 ?? 0,
+          current2: doc.current2 ?? 0,
+          current3: doc.current3 ?? 0,
+          power1: doc.power1 ?? 0,
+          power2: doc.power2 ?? 0,
+          power3: doc.power3 ?? 0,
+          total_power: doc.total_power ?? doc.watt ?? 0,
+          watt: doc.watt ?? doc.total_power ?? 0,
+          temperature: doc.temperature ?? 0,
+          humidity: doc.humidity ?? 0,
+          time: timeValue,
+        };
     });
 
     return NextResponse.json(data);
