@@ -39,6 +39,21 @@ type SensorData = {
     time: string;
 };
 
+type PredictionData = {
+    success: boolean;
+    predictions: {
+        watt: number;
+        temperature: number;
+        humidity: number;
+    };
+    units: {
+        watt: string;
+        temperature: string;
+        humidity: string;
+    };
+    model: string;
+};
+
 // Room configuration - consistent across the app
 const ROOMS = [
     { id: 1, name: 'Living Room', icon: '🛋️', color: '#22c55e', bgColor: 'bg-green-50', borderColor: 'border-green-200', textColor: 'text-green-700' },
@@ -86,6 +101,13 @@ export default function Dashboard() {
         `/api/history/mongo?start=${new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()}&end=${new Date().toISOString()}&limit=2000`,
         fetcher,
         { refreshInterval: 30000 }
+    );
+
+    // Fetch AI predictions
+    const { data: predictionData, error: predictionError } = useSWR<PredictionData>(
+        '/api/predict',
+        fetcher,
+        { refreshInterval: 10000 }
     );
 
     // Process data for analytics
@@ -361,6 +383,192 @@ export default function Dashboard() {
                                 </div>
                             </div>
                         </div>
+                    </div>
+
+                    {/* AI Predictions Section */}
+                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div className="px-6 py-5 border-b border-slate-200">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2.5 rounded-xl bg-indigo-50">
+                                        <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-semibold text-slate-900">Predictive Analytics</h3>
+                                        <p className="text-xs text-slate-500 mt-0.5">Model: {predictionData?.model || 'Ridge Regression (Time Series)'}</p>
+                                    </div>
+                                </div>
+                                {predictionError ? (
+                                    <span className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md bg-red-50 text-red-700 border border-red-200">
+                                        <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                        </svg>
+                                        Unavailable
+                                    </span>
+                                ) : (
+                                    <span className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                        Active
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+                        {predictionError ? (
+                            <div className="px-6 py-8 text-center">
+                                <svg className="w-12 h-12 text-slate-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <p className="text-sm text-slate-600">Unable to retrieve prediction data</p>
+                                <p className="text-xs text-slate-500 mt-1">Please verify the connection to the prediction service</p>
+                            </div>
+                        ) : predictionData ? (
+                            <div className="px-6 py-6">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                                    <div className="bg-slate-50 rounded-xl border border-slate-200 p-5 hover:border-slate-300 transition-colors">
+                                        <div className="flex items-start justify-between mb-4">
+                                            <div className="flex items-center gap-2">
+                                                <div className="p-2 rounded-lg bg-amber-100">
+                                                    <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                                    </svg>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Power Forecast</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <div>
+                                                <p className="text-2xl font-bold text-slate-900">{formatNumber(predictionData.predictions.watt, 2)}</p>
+                                                <p className="text-xs text-slate-500 mt-0.5">{predictionData.units.watt}</p>
+                                            </div>
+                                            {analytics.latest && (
+                                                <div className="pt-3 border-t border-slate-200">
+                                                    <div className="flex items-center justify-between text-xs">
+                                                        <span className="text-slate-500">Current Value</span>
+                                                        <span className="font-medium text-slate-700">{formatNumber(analytics.latest.watt, 2)} W</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5 mt-2">
+                                                        <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded ${predictionData.predictions.watt > analytics.latest.watt ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'}`}>
+                                                            {predictionData.predictions.watt > analytics.latest.watt ? (
+                                                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                                                    <path fillRule="evenodd" d="M5.293 7.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 5.414V17a1 1 0 11-2 0V5.414L6.707 7.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                                                                </svg>
+                                                            ) : (
+                                                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                                                    <path fillRule="evenodd" d="M14.707 12.293a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L9 14.586V3a1 1 0 012 0v11.586l2.293-2.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                                                </svg>
+                                                            )}
+                                                            {Math.abs(((predictionData.predictions.watt - analytics.latest.watt) / analytics.latest.watt) * 100).toFixed(1)}%
+                                                        </span>
+                                                        <span className="text-xs text-slate-600">
+                                                            {predictionData.predictions.watt > analytics.latest.watt ? 'expected increase' : 'expected decrease'}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="bg-slate-50 rounded-xl border border-slate-200 p-5 hover:border-slate-300 transition-colors">
+                                        <div className="flex items-start justify-between mb-4">
+                                            <div className="flex items-center gap-2">
+                                                <div className="p-2 rounded-lg bg-orange-100">
+                                                    <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                                    </svg>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Temperature Forecast</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <div>
+                                                <p className="text-2xl font-bold text-slate-900">{formatNumber(predictionData.predictions.temperature, 2)}</p>
+                                                <p className="text-xs text-slate-500 mt-0.5">{predictionData.units.temperature}</p>
+                                            </div>
+                                            {analytics.latest && (
+                                                <div className="pt-3 border-t border-slate-200">
+                                                    <div className="flex items-center justify-between text-xs">
+                                                        <span className="text-slate-500">Current Value</span>
+                                                        <span className="font-medium text-slate-700">{formatNumber(analytics.latest.temperature, 2)} °C</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5 mt-2">
+                                                        <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded ${predictionData.predictions.temperature > analytics.latest.temperature ? 'bg-orange-50 text-orange-700' : 'bg-blue-50 text-blue-700'}`}>
+                                                            {predictionData.predictions.temperature > analytics.latest.temperature ? (
+                                                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                                                    <path fillRule="evenodd" d="M5.293 7.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 5.414V17a1 1 0 11-2 0V5.414L6.707 7.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                                                                </svg>
+                                                            ) : (
+                                                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                                                    <path fillRule="evenodd" d="M14.707 12.293a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L9 14.586V3a1 1 0 012 0v11.586l2.293-2.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                                                </svg>
+                                                            )}
+                                                            {Math.abs(predictionData.predictions.temperature - analytics.latest.temperature).toFixed(1)}°C
+                                                        </span>
+                                                        <span className="text-xs text-slate-600">
+                                                            {predictionData.predictions.temperature > analytics.latest.temperature ? 'warmer expected' : 'cooler expected'}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="bg-slate-50 rounded-xl border border-slate-200 p-5 hover:border-slate-300 transition-colors">
+                                        <div className="flex items-start justify-between mb-4">
+                                            <div className="flex items-center gap-2">
+                                                <div className="p-2 rounded-lg bg-cyan-100">
+                                                    <svg className="w-4 h-4 text-cyan-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+                                                    </svg>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Humidity Forecast</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <div>
+                                                <p className="text-2xl font-bold text-slate-900">{formatNumber(predictionData.predictions.humidity, 2)}</p>
+                                                <p className="text-xs text-slate-500 mt-0.5">{predictionData.units.humidity}</p>
+                                            </div>
+                                            {analytics.latest && (
+                                                <div className="pt-3 border-t border-slate-200">
+                                                    <div className="flex items-center justify-between text-xs">
+                                                        <span className="text-slate-500">Current Value</span>
+                                                        <span className="font-medium text-slate-700">{formatNumber(analytics.latest.humidity, 2)} %</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5 mt-2">
+                                                        <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded ${predictionData.predictions.humidity > analytics.latest.humidity ? 'bg-cyan-50 text-cyan-700' : 'bg-amber-50 text-amber-700'}`}>
+                                                            {predictionData.predictions.humidity > analytics.latest.humidity ? (
+                                                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                                                    <path fillRule="evenodd" d="M5.293 7.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 5.414V17a1 1 0 11-2 0V5.414L6.707 7.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                                                                </svg>
+                                                            ) : (
+                                                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                                                    <path fillRule="evenodd" d="M14.707 12.293a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L9 14.586V3a1 1 0 012 0v11.586l2.293-2.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                                                </svg>
+                                                            )}
+                                                            {Math.abs(predictionData.predictions.humidity - analytics.latest.humidity).toFixed(1)}%
+                                                        </span>
+                                                        <span className="text-xs text-slate-600">
+                                                            {predictionData.predictions.humidity > analytics.latest.humidity ? 'increase expected' : 'decrease expected'}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="px-6 py-12 text-center">
+                                <div className="inline-block h-8 w-8 animate-spin rounded-full border-3 border-solid border-slate-300 border-t-indigo-600"></div>
+                                <p className="text-sm text-slate-600 mt-3 font-medium">Loading prediction data...</p>
+                            </div>
+                        )}
                     </div>
 
                     {/* Room Cards */}
