@@ -2,7 +2,7 @@
 
 import { useAuth, UserButton } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import HealthCheck from '@/components/HealthCheck';
 import SensorAlerts from '@/components/SensorAlerts';
@@ -86,6 +86,9 @@ const formatNumber = (value: number | undefined, decimals = 2) => {
 };
 
 export default function Dashboard() {
+    // Filters
+    const [range, setRange] = useState<'1h' | '6h' | '24h' | '7d'>('24h');
+    const [roomsEnabled, setRoomsEnabled] = useState<Record<1 | 2 | 3, boolean>>({ 1: true, 2: true, 3: true });
     const { isLoaded, userId } = useAuth();
     const router = useRouter();
 
@@ -96,9 +99,18 @@ export default function Dashboard() {
         { refreshInterval: 5000 }
     );
 
-    // Fetch historical data for trends
+    // Compute date range for history filter
+    const now = Date.now();
+    const rangeMs = range === '1h' ? 1 * 60 * 60 * 1000
+        : range === '6h' ? 6 * 60 * 60 * 1000
+            : range === '24h' ? 24 * 60 * 60 * 1000
+                : 7 * 24 * 60 * 60 * 1000;
+    const startISO = new Date(now - rangeMs).toISOString();
+    const endISO = new Date(now).toISOString();
+
+    // Fetch historical data for trends (range-aware)
     const { data: historyData, error: historyError } = useSWR<SensorData[]>(
-        `/api/history/mongo?start=${new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()}&end=${new Date().toISOString()}&limit=2000`,
+        `/api/history/mongo?start=${startISO}&end=${endISO}&limit=${range === '7d' ? 10000 : 4000}`,
         fetcher,
         { refreshInterval: 30000 }
     );
@@ -230,11 +242,11 @@ export default function Dashboard() {
     const powerTrendData = useMemo(() => ({
         labels: analytics.powerTrend.map(d => d.time),
         datasets: [
-            { label: '🛋️ Living Room', data: analytics.powerTrend.map(d => d.power1), borderColor: '#22c55e', backgroundColor: 'rgba(34, 197, 94, 0.1)', tension: 0.4, fill: false, borderWidth: 2 },
-            { label: '🛏️ Bedroom', data: analytics.powerTrend.map(d => d.power2), borderColor: '#0ea5e9', backgroundColor: 'rgba(14, 165, 233, 0.1)', tension: 0.4, fill: false, borderWidth: 2 },
-            { label: '🍳 Kitchen', data: analytics.powerTrend.map(d => d.power3), borderColor: '#f97316', backgroundColor: 'rgba(249, 115, 22, 0.1)', tension: 0.4, fill: false, borderWidth: 2 },
+            { label: '🛋️ Living Room', data: analytics.powerTrend.map(d => d.power1), borderColor: '#22c55e', backgroundColor: 'rgba(34, 197, 94, 0.1)', tension: 0.4, fill: false, borderWidth: 2, hidden: !roomsEnabled[1] },
+            { label: '🛏️ Bedroom', data: analytics.powerTrend.map(d => d.power2), borderColor: '#0ea5e9', backgroundColor: 'rgba(14, 165, 233, 0.1)', tension: 0.4, fill: false, borderWidth: 2, hidden: !roomsEnabled[2] },
+            { label: '🍳 Kitchen', data: analytics.powerTrend.map(d => d.power3), borderColor: '#f97316', backgroundColor: 'rgba(249, 115, 22, 0.1)', tension: 0.4, fill: false, borderWidth: 2, hidden: !roomsEnabled[3] },
         ],
-    }), [analytics.powerTrend]);
+    }), [analytics.powerTrend, roomsEnabled]);
 
     const hourlyUsageData = useMemo(() => ({
         labels: analytics.hourlyUsage.map(d => d.hour),
@@ -246,14 +258,18 @@ export default function Dashboard() {
         }],
     }), [analytics.hourlyUsage]);
 
-    const roomDistributionData = useMemo(() => ({
-        labels: ROOMS.map(r => r.name),
-        datasets: [{
-            data: analytics.roomDistribution,
-            backgroundColor: ROOMS.map(r => r.color),
-            borderWidth: 0,
-        }],
-    }), [analytics.roomDistribution]);
+    const roomDistributionData = useMemo(() => {
+        const activeRooms = ROOMS.filter(r => roomsEnabled[r.id as 1 | 2 | 3]);
+        const activeData = activeRooms.map(r => analytics.roomDistribution[r.id - 1] || 0);
+        return {
+            labels: activeRooms.map(r => r.name),
+            datasets: [{
+                data: activeData,
+                backgroundColor: activeRooms.map(r => r.color),
+                borderWidth: 0,
+            }],
+        };
+    }, [analytics.roomDistribution, roomsEnabled]);
 
     const doughnutOptions = useMemo(() => ({
         responsive: true,
@@ -662,6 +678,46 @@ export default function Dashboard() {
                             <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Carbon Footprint</p>
                             <p className="text-2xl font-bold text-green-600 mt-2">{formatNumber(carbonFootprint, 1)}</p>
                             <p className="text-xs text-slate-500">kg CO₂/month</p>
+                        </div>
+                    </div>
+
+                    {/* Filters */}
+                    <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium text-slate-700">Range:</span>
+                                {([
+                                    { key: '1h', label: 'Last 1h' },
+                                    { key: '6h', label: 'Last 6h' },
+                                    { key: '24h', label: 'Last 24h' },
+                                    { key: '7d', label: 'Last 7d' },
+                                ] as const).map(opt => (
+                                    <button
+                                        key={opt.key}
+                                        onClick={() => setRange(opt.key)}
+                                        className={`px-3 py-1.5 text-sm rounded-md border transition ${range === opt.key ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
+                                    >
+                                        {opt.label}
+                                    </button>
+                                ))}
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <span className="text-sm font-medium text-slate-700">Rooms:</span>
+                                {ROOMS.map(r => (
+                                    <label key={r.id} className="inline-flex items-center gap-2 text-sm">
+                                        <input
+                                            type="checkbox"
+                                            className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500"
+                                            checked={roomsEnabled[r.id as 1 | 2 | 3]}
+                                            onChange={() => setRoomsEnabled(prev => ({ ...prev, [r.id]: !prev[r.id as 1 | 2 | 3] }))}
+                                        />
+                                        <span className="inline-flex items-center gap-1">
+                                            <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: r.color }} />
+                                            {r.name}
+                                        </span>
+                                    </label>
+                                ))}
+                            </div>
                         </div>
                     </div>
 
