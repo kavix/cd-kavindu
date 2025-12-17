@@ -56,8 +56,8 @@ type PredictionData = {
 
 // Room configuration - consistent across the app
 const ROOMS = [
-    { id: 1, name: 'Living Room', icon: '🛋️', color: '#22c55e', bgColor: 'bg-green-50', borderColor: 'border-green-200', textColor: 'text-green-700' },
-    { id: 2, name: 'Bedroom', icon: '🛏️', color: '#0ea5e9', bgColor: 'bg-sky-50', borderColor: 'border-sky-200', textColor: 'text-sky-700' },
+    { id: 1, name: 'Bedroom No.01', icon: '🛏️', color: '#22c55e', bgColor: 'bg-green-50', borderColor: 'border-green-200', textColor: 'text-green-700' },
+    { id: 2, name: 'Bedroom No 2', icon: '🛏️', color: '#0ea5e9', bgColor: 'bg-sky-50', borderColor: 'border-sky-200', textColor: 'text-sky-700' },
     { id: 3, name: 'Kitchen', icon: '🍳', color: '#f97316', bgColor: 'bg-orange-50', borderColor: 'border-orange-200', textColor: 'text-orange-700' },
 ];
 
@@ -242,8 +242,8 @@ export default function Dashboard() {
     const powerTrendData = useMemo(() => ({
         labels: analytics.powerTrend.map(d => d.time),
         datasets: [
-            { label: '🛋️ Living Room', data: analytics.powerTrend.map(d => d.power1), borderColor: '#22c55e', backgroundColor: 'rgba(34, 197, 94, 0.1)', tension: 0.4, fill: false, borderWidth: 2, hidden: !roomsEnabled[1] },
-            { label: '🛏️ Bedroom', data: analytics.powerTrend.map(d => d.power2), borderColor: '#0ea5e9', backgroundColor: 'rgba(14, 165, 233, 0.1)', tension: 0.4, fill: false, borderWidth: 2, hidden: !roomsEnabled[2] },
+            { label: '🛏️ Bedroom No.01', data: analytics.powerTrend.map(d => d.power1), borderColor: '#22c55e', backgroundColor: 'rgba(34, 197, 94, 0.1)', tension: 0.4, fill: false, borderWidth: 2, hidden: !roomsEnabled[1] },
+            { label: '🛏️ Bedroom No 2', data: analytics.powerTrend.map(d => d.power2), borderColor: '#0ea5e9', backgroundColor: 'rgba(14, 165, 233, 0.1)', tension: 0.4, fill: false, borderWidth: 2, hidden: !roomsEnabled[2] },
             { label: '🍳 Kitchen', data: analytics.powerTrend.map(d => d.power3), borderColor: '#f97316', backgroundColor: 'rgba(249, 115, 22, 0.1)', tension: 0.4, fill: false, borderWidth: 2, hidden: !roomsEnabled[3] },
         ],
     }), [analytics.powerTrend, roomsEnabled]);
