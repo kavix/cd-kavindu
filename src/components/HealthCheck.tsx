@@ -18,7 +18,7 @@ const fetcher = async (url: string) => {
 
 export default function HealthCheck() {
   const { data, error, isLoading } = useSWR<HealthResponse>(
-    '/api/health',
+    'http://13.127.192.243:3000/health',
     fetcher,
     {
       refreshInterval: 30000, // Check every 30 seconds
@@ -32,13 +32,12 @@ export default function HealthCheck() {
     <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-2.5 shadow-sm">
       <div className="flex items-center gap-2">
         <div
-          className={`h-2.5 w-2.5 rounded-full ${
-            isLoading
+          className={`h-2.5 w-2.5 rounded-full ${isLoading
               ? 'bg-amber-400 animate-pulse'
               : isHealthy
                 ? 'bg-emerald-500'
                 : 'bg-rose-500'
-          }`}
+            }`}
         />
         <span className="text-sm font-medium text-slate-700">
           {isLoading

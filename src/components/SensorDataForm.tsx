@@ -49,7 +49,7 @@ export default function SensorDataForm() {
         throw new Error('All fields must be valid numbers');
       }
 
-      const res = await fetch('/api/send', {
+      const res = await fetch('http://13.127.192.243:3000/send', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -65,7 +65,7 @@ export default function SensorDataForm() {
       const data: SendResponse = await res.json();
       setSuccess(data.message || 'Data sent successfully!');
       setFormData({ volt: '', amps: '', watt: '', temperature: '', humidity: '' });
-      
+
       // Clear success message after 5 seconds
       setTimeout(() => setSuccess(null), 5000);
     } catch (err) {

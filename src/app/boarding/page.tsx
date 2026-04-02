@@ -96,7 +96,7 @@ export default function BoardingDashboard() {
 
     // Fetch live sensor data (last 50 readings)
     const { data: sensorData, error: sensorError } = useSWR<SensorData[]>(
-        '/api/sensors',
+        'http://13.127.192.243:3000/sensors',
         fetcher,
         { refreshInterval: 5000 }
     );
@@ -106,7 +106,7 @@ export default function BoardingDashboard() {
     const latestData = sensorData?.[sensorData.length - 1];
 
     const { data: predictionData, error: predictionError } = useSWR<PredictionData>(
-        '/api/predict',
+        'http://13.127.192.243:3000/predict',
         fetcher,
         { refreshInterval: 60000 } // Fetch predictions every minute
     );

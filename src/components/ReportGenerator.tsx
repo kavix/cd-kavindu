@@ -66,7 +66,7 @@ async function fetchReportData(type: ReportType): Promise<SensorData[]> {
     }
 
     const response = await fetch(
-        `/api/history/mongo?start=${startDate.toISOString()}&end=${now.toISOString()}&limit=50000`
+        `http://13.127.192.243:3000/history?start=${startDate.toISOString()}&end=${now.toISOString()}&limit=50000`
     );
 
     if (!response.ok) {
