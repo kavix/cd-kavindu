@@ -79,7 +79,7 @@ export default function HistoryPage() {
       }
 
       // Use Next.js API route to avoid CORS issues
-      const url = new URL('/api/history/mongo', window.location.origin);
+      const url = new URL('http://13.127.192.243:3000/history');
       url.searchParams.set('start', new Date(startToUse).toISOString());
       url.searchParams.set('end', new Date(endToUse).toISOString());
       url.searchParams.set('limit', '100');
