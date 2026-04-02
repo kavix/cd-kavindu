@@ -6,8 +6,8 @@ export default function LoginPage() {
             <div className="max-w-md w-full">
                 <SignIn
                     routing="hash"
-                    signUpUrl="/sign-up"
                     redirectUrl="/selection"
+                    signUpUrl="/sign-up"
                 />
             </div>
         </div>
