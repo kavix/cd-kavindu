@@ -1,32 +1,25 @@
 import { NextResponse } from 'next/server';
-import { MongoClient } from 'mongodb';
+import { MongoClient, Db } from 'mongodb';
 
-const uri = 'mongodb+srv://blacky:2419624196@voltura.vl2m5kl.mongodb.net/volData?retryWrites=true&w=majority';
-const dbName = 'volData';
-const collectionName = 'finalVolData';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://blacky:2419624196@voltura.vl2m5kl.mongodb.net/volData?retryWrites=true&w=majority';
+const DB_NAME = 'volData';
+const COLLECTION_NAME = 'finalVolData';
 
-let client: MongoClient | null = null;
-let clientPromise: Promise<MongoClient> | null = null;
+// Cache the database connection
+let cachedDb: Db | null = null;
 
-function getClient(): Promise<MongoClient> {
-  if (client && client.topology && client.topology.isConnected()) {
-    return Promise.resolve(client);
+async function connectToDatabase() {
+  if (cachedDb) {
+    return cachedDb;
   }
-  if (clientPromise) {
-    return clientPromise;
-  }
-  clientPromise = new Promise(async (resolve, reject) => {
-    try {
-      client = new MongoClient(uri, { maxPoolSize: 5 });
-      await client.connect();
-      resolve(client);
-    } catch (e) {
-      client = null;
-      clientPromise = null;
-      reject(e);
-    }
+  const client = new MongoClient(MONGODB_URI, {
+    maxPoolSize: 10,
+    serverSelectionTimeoutMS: 5000,
   });
-  return clientPromise;
+  await client.connect();
+  const db = client.db(DB_NAME);
+  cachedDb = db;
+  return db;
 }
 
 export async function GET(req: Request) {
@@ -36,57 +29,50 @@ export async function GET(req: Request) {
     const end = searchParams.get('end');
     const limit = Math.min(parseInt(searchParams.get('limit') || '2000', 10), 20000);
 
-    const query: Record<string, unknown> = {};
+    const query: Record<string, any> = {};
     if (start || end) {
-      query.time = {} as Record<string, Date>;
-      if (start) (query.time as Record<string, Date>).$gte = new Date(start);
-      if (end) (query.time as Record<string, Date>).$lte = new Date(end);
+      query.time = {};
+      if (start) query.time.$gte = new Date(start);
+      if (end) query.time.$lte = new Date(end);
     }
 
-    const mongoClient = await getClient();
-    const db = mongoClient.db(dbName);
-    const collection = db.collection(collectionName);
+    const db = await connectToDatabase();
+    const collection = db.collection(COLLECTION_NAME);
 
-    const cursor = collection
+    const items = await collection
       .find(query)
       .sort({ time: 1 })
-      .limit(Number.isFinite(limit) ? limit : 2000);
+      .limit(limit)
+      .toArray();
 
-    const items = await cursor.toArray();
+    const data = items.map((doc) => ({
+      _id: doc._id?.toString() ?? '',
+      volt: doc.volt ?? 0,
+      current1: doc.current1 ?? 0,
+      current2: doc.current2 ?? 0,
+      current3: doc.current3 ?? 0,
+      power1: doc.power1 ?? 0,
+      power2: doc.power2 ?? 0,
+      power3: doc.power3 ?? 0,
+      total_power: doc.total_power ?? doc.watt ?? 0,
+      watt: doc.watt ?? doc.total_power ?? 0,
+      temperature: doc.temperature ?? 0,
+      humidity: doc.humidity ?? 0,
+      time: (doc.time instanceof Date ? doc.time : new Date(doc.time)).toISOString(),
+    }));
 
-    const data = items.map((doc: any) => {
-      // Handle both direct Date objects and MongoDB $date format
-      let timeValue: string;
-      if (doc.time instanceof Date) {
-        timeValue = doc.time.toISOString();
-      } else if (doc.time && typeof doc.time === 'object' && doc.time.$date) {
-        timeValue = new Date(doc.time.$date).toISOString();
-      } else if (typeof doc.time === 'string') {
-        timeValue = new Date(doc.time).toISOString();
-      } else {
-        timeValue = new Date().toISOString();
-      }
-
-        return {
-          _id: doc._id?.toString?.() ?? String(doc._id ?? ''),
-          volt: doc.volt ?? 0,
-          current1: doc.current1 ?? 0,
-          current2: doc.current2 ?? 0,
-          current3: doc.current3 ?? 0,
-          power1: doc.power1 ?? 0,
-          power2: doc.power2 ?? 0,
-          power3: doc.power3 ?? 0,
-          total_power: doc.total_power ?? doc.watt ?? 0,
-          watt: doc.watt ?? doc.total_power ?? 0,
-          temperature: doc.temperature ?? 0,
-          humidity: doc.humidity ?? 0,
-          time: timeValue,
-        };
+    return new NextResponse(JSON.stringify(data), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 's-maxage=60, stale-while-revalidate',
+      },
     });
-
-    return NextResponse.json(data);
   } catch (error) {
     console.error('Error fetching history from Mongo:', error);
-    return NextResponse.json({ error: 'Failed to fetch history from Mongo' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to fetch history from Mongo' },
+      { status: 500 }
+    );
   }
 }
