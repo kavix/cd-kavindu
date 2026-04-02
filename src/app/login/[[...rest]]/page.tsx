@@ -7,7 +7,7 @@ export default function LoginPage() {
                 <SignIn
                     routing="hash"
                     signUpUrl="/sign-up"
-                    redirectUrl="/dashboard"
+                    redirectUrl="/selection"
                 />
             </div>
         </div>
