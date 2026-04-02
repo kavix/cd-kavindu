@@ -351,7 +351,7 @@ export default function ReportGenerator({ sensorData }: ReportGeneratorProps) {
     const [error, setError] = useState<string | null>(null);
 
     const handleGenerateReport = async (type: ReportType) => {
-        setIsLoading(type);
+        setIsLoading(true);
         setError(null);
 
         try {
@@ -368,7 +368,7 @@ export default function ReportGenerator({ sensorData }: ReportGeneratorProps) {
             setError(`Failed to generate ${type} report. Please try again.`);
             console.error(err);
         } finally {
-            setIsLoading(null);
+            setIsLoading(false);
         }
     };
 
@@ -391,10 +391,10 @@ export default function ReportGenerator({ sensorData }: ReportGeneratorProps) {
             <div className="flex flex-wrap gap-3">
                 <button
                     onClick={() => handleGenerateReport('weekly')}
-                    disabled={isLoading !== null}
+                    disabled={isLoading}
                     className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    {isLoading === 'weekly' ? (
+                    {isLoading ? (
                         <>
                             <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -414,10 +414,10 @@ export default function ReportGenerator({ sensorData }: ReportGeneratorProps) {
 
                 <button
                     onClick={() => handleGenerateReport('monthly')}
-                    disabled={isLoading !== null}
+                    disabled={isLoading}
                     className="inline-flex items-center gap-2 rounded-xl bg-green-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    {isLoading === 'monthly' ? (
+                    {isLoading ? (
                         <>
                             <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />

@@ -634,7 +634,7 @@ export default function Dashboard() {
                     {/* Report Generator & Bill Payment */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         {/* Report Generator */}
-                        <ReportGenerator />
+                        <ReportGenerator sensorData={sensorData || []} />
 
                         {/* Bill Payment Portal */}
                         <div className="rounded-2xl border border-slate-200 bg-gradient-to-r from-blue-500 to-indigo-600 p-6 shadow-sm text-white">

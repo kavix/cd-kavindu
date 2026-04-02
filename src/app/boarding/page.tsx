@@ -293,7 +293,7 @@ export default function BoardingDashboard() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="bg-white p-6 rounded-lg shadow-lg">
                         <h2 className="text-lg font-semibold mb-4 text-custom-purple-dark">Alerts</h2>
-                        <SensorAlerts sensorData={sensorData || []} />
+                        <SensorAlerts sensorData={latestData || null} />
                     </div>
                     <div className="bg-white p-6 rounded-lg shadow-lg">
                         <h2 className="text-lg font-semibold mb-4 text-custom-purple-dark">Reporting</h2>

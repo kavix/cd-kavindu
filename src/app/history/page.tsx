@@ -268,7 +268,7 @@ export default function HistoryPage() {
 
           {/* Report Generator */}
           <div className="mt-8">
-            <ReportGenerator />
+            <ReportGenerator sensorData={entries.filter(entry => entry.temperature !== undefined && entry.humidity !== undefined).map(entry => ({ ...entry, temperature: entry.temperature!, humidity: entry.humidity! }))} />
           </div>
 
           <div className="mt-8 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
