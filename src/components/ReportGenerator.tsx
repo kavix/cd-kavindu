@@ -20,6 +20,10 @@ type SensorData = {
     time: string;
 };
 
+type ReportGeneratorProps = {
+    sensorData: SensorData[];
+};
+
 type ReportType = 'weekly' | 'monthly';
 
 const ROOMS = [
@@ -341,12 +345,13 @@ function generatePDF(stats: ReturnType<typeof calculateStatistics>, type: Report
     doc.save(filename);
 }
 
-export default function ReportGenerator() {
-    const [loading, setLoading] = useState<ReportType | null>(null);
+export default function ReportGenerator({ sensorData }: ReportGeneratorProps) {
+    const [reportType, setReportType] = useState<ReportType>('weekly');
+    const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const handleGenerateReport = async (type: ReportType) => {
-        setLoading(type);
+        setIsLoading(type);
         setError(null);
 
         try {
@@ -363,7 +368,7 @@ export default function ReportGenerator() {
             setError(`Failed to generate ${type} report. Please try again.`);
             console.error(err);
         } finally {
-            setLoading(null);
+            setIsLoading(null);
         }
     };
 
@@ -386,10 +391,10 @@ export default function ReportGenerator() {
             <div className="flex flex-wrap gap-3">
                 <button
                     onClick={() => handleGenerateReport('weekly')}
-                    disabled={loading !== null}
+                    disabled={isLoading !== null}
                     className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    {loading === 'weekly' ? (
+                    {isLoading === 'weekly' ? (
                         <>
                             <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -409,10 +414,10 @@ export default function ReportGenerator() {
 
                 <button
                     onClick={() => handleGenerateReport('monthly')}
-                    disabled={loading !== null}
+                    disabled={isLoading !== null}
                     className="inline-flex items-center gap-2 rounded-xl bg-green-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    {loading === 'monthly' ? (
+                    {isLoading === 'monthly' ? (
                         <>
                             <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />

@@ -18,12 +18,12 @@ type SensorData = {
 
 type Alert = {
     id: string;
-    type: 'danger' | 'warning';
+    type: 'danger' | 'warning' | 'info';
     title: string;
     message: string;
-    value: number;
-    limit: number;
-    unit: string;
+    value?: number;
+    limit?: number;
+    unit?: string;
     timestamp: Date;
 };
 
@@ -85,9 +85,33 @@ export default function SensorAlerts({ sensorData, enableBrowserNotifications = 
 
     // Check thresholds and generate alerts
     useEffect(() => {
-        if (!sensorData) return;
-
         const newAlerts: Alert[] = [];
+
+        // Date-based alerts
+        const today = new Date();
+        if (today.getDate() <= 10) {
+            newAlerts.push({
+                id: 'bill-reminder',
+                type: 'info',
+                title: 'Friendly Reminder',
+                message: 'Pay electricity bills before the 10th of every month to avoid late fees.',
+                timestamp: new Date(),
+            });
+        }
+
+        // General tips
+        newAlerts.push({
+            id: 'energy-saving-tip',
+            type: 'info',
+            title: 'Energy Saving Tip',
+            message: 'Turn off lights and fans when leaving a room to conserve energy.',
+            timestamp: new Date(),
+        });
+
+        if (!sensorData) {
+            setAlerts(newAlerts);
+            return;
+        }
 
         // Voltage checks
         if (sensorData.volt > THRESHOLDS.voltage.max) {
@@ -102,10 +126,8 @@ export default function SensorAlerts({ sensorData, enableBrowserNotifications = 
                 timestamp: new Date(),
             };
             newAlerts.push(alert);
-            sendBrowserNotification(alert);
-        }
-
-        if (sensorData.volt < THRESHOLDS.voltage.min) {
+            if (enableBrowserNotifications) sendBrowserNotification(alert);
+        } else if (sensorData.volt < THRESHOLDS.voltage.min) {
             const alert: Alert = {
                 id: 'low-voltage',
                 type: 'warning',
@@ -214,87 +236,50 @@ export default function SensorAlerts({ sensorData, enableBrowserNotifications = 
             sendBrowserNotification(alert);
         }
 
+        // Update alerts state
         setAlerts(newAlerts);
-    }, [sensorData, sendBrowserNotification]);
 
-    // Dismiss alert
-    const dismissAlert = (alertId: string) => {
-        setAlerts(prev => prev.filter(a => a.id !== alertId));
+    }, [sensorData, sendBrowserNotification, enableBrowserNotifications]);
+
+    const getAlertIcon = (type: Alert['type']) => {
+        switch (type) {
+            case 'danger': return '🔥';
+            case 'warning': return '⚠️';
+            case 'info': return '💡';
+            default: return '🔔';
+        }
     };
 
-    if (alerts.length === 0) return null;
+    const getAlertClasses = (type: Alert['type']) => {
+        switch (type) {
+            case 'danger': return 'bg-red-500/10 border-red-500/30 text-red-200';
+            case 'warning': return 'bg-yellow-500/10 border-yellow-500/30 text-yellow-200';
+            case 'info': return 'bg-blue-500/10 border-blue-500/30 text-blue-200';
+            default: return 'bg-gray-500/10 border-gray-500/30';
+        }
+    };
+
+    if (!alerts.length) {
+        return (
+            <div className="text-center py-8">
+                <div className="text-4xl mb-2">✅</div>
+                <h3 className="font-semibold">All Systems Normal</h3>
+                <p className="text-sm text-gray-400">No alerts to show right now.</p>
+            </div>
+        );
+    }
 
     return (
-        <div className="space-y-3">
-            {/* Notification Permission Banner */}
-            {enableBrowserNotifications && notificationPermission === 'default' && (
-                <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <span className="text-xl">🔔</span>
-                            <div>
-                                <p className="font-medium text-blue-900">Enable Notifications</p>
-                                <p className="text-sm text-blue-700">Get browser alerts when values exceed limits</p>
-                            </div>
-                        </div>
-                        <button
-                            onClick={() => Notification.requestPermission().then(setNotificationPermission)}
-                            className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition"
-                        >
-                            Enable
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {/* Active Alerts */}
+        <div className="space-y-3 max-h-96 overflow-y-auto">
             {alerts.map(alert => (
-                <div
-                    key={alert.id}
-                    className={`rounded-xl border p-4 shadow-sm animate-pulse ${alert.type === 'danger'
-                            ? 'border-red-300 bg-red-50'
-                            : 'border-amber-300 bg-amber-50'
-                        }`}
-                >
-                    <div className="flex items-start justify-between">
-                        <div className="flex items-start gap-3">
-                            <span className="text-2xl">
-                                {alert.type === 'danger' ? '🚨' : '⚠️'}
-                            </span>
-                            <div>
-                                <h4 className={`font-semibold ${alert.type === 'danger' ? 'text-red-900' : 'text-amber-900'
-                                    }`}>
-                                    {alert.title}
-                                </h4>
-                                <p className={`text-sm mt-1 ${alert.type === 'danger' ? 'text-red-700' : 'text-amber-700'
-                                    }`}>
-                                    {alert.message}
-                                </p>
-                                <div className="flex items-center gap-4 mt-2">
-                                    <span className={`text-xs font-medium px-2 py-1 rounded-full ${alert.type === 'danger'
-                                            ? 'bg-red-200 text-red-800'
-                                            : 'bg-amber-200 text-amber-800'
-                                        }`}>
-                                        Current: {alert.value.toFixed(1)} {alert.unit}
-                                    </span>
-                                    <span className="text-xs text-slate-500">
-                                        Limit: {alert.limit} {alert.unit}
-                                    </span>
-                                </div>
-                            </div>
+                <div key={alert.id} className={`p-3 rounded-lg border ${getAlertClasses(alert.type)}`}>
+                    <div className="flex items-start">
+                        <div className="text-xl mr-3">{getAlertIcon(alert.type)}</div>
+                        <div className="flex-1">
+                            <h4 className="font-bold">{alert.title}</h4>
+                            <p className="text-sm">{alert.message}</p>
+                            <p className="text-xs text-gray-400 mt-1">{alert.timestamp.toLocaleString()}</p>
                         </div>
-                        <button
-                            onClick={() => dismissAlert(alert.id)}
-                            className={`p-1 rounded-lg transition ${alert.type === 'danger'
-                                    ? 'hover:bg-red-200 text-red-600'
-                                    : 'hover:bg-amber-200 text-amber-600'
-                                }`}
-                            title="Dismiss"
-                        >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
                     </div>
                 </div>
             ))}

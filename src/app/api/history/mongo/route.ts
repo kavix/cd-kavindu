@@ -6,12 +6,27 @@ const dbName = 'volData';
 const collectionName = 'finalVolData';
 
 let client: MongoClient | null = null;
+let clientPromise: Promise<MongoClient> | null = null;
 
-async function getClient() {
-  if (client) return client;
-  client = new MongoClient(uri, { maxPoolSize: 5 });
-  await client.connect();
-  return client;
+function getClient(): Promise<MongoClient> {
+  if (client && client.topology && client.topology.isConnected()) {
+    return Promise.resolve(client);
+  }
+  if (clientPromise) {
+    return clientPromise;
+  }
+  clientPromise = new Promise(async (resolve, reject) => {
+    try {
+      client = new MongoClient(uri, { maxPoolSize: 5 });
+      await client.connect();
+      resolve(client);
+    } catch (e) {
+      client = null;
+      clientPromise = null;
+      reject(e);
+    }
+  });
+  return clientPromise;
 }
 
 export async function GET(req: Request) {
