@@ -17,7 +17,7 @@ export default function SelectionPage() {
                         <Link href="/dashboard" passHref>
                             <span className="flex w-full cursor-pointer items-center justify-center rounded-xl border border-slate-200 bg-white px-6 py-4 font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/30">
                                 <Home className="mr-3 h-5 w-5" />
-                                Home Dashboard
+                                House
                             </span>
                         </Link>
                         <Link href="/boarding" passHref>
