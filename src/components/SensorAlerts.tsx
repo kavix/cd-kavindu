@@ -45,9 +45,35 @@ type SensorAlertsProps = {
 
 export default function SensorAlerts({ sensorData, enableBrowserNotifications = true }: SensorAlertsProps) {
     const lastNotifiedRef = useRef<Map<string, number>>(new Map());
-    const NOTIFICATION_COOLDOWN = 60000; // 1 minute cooldown between same notifications
+    const NOTIFICATION_COOLDOWN = 12 * 60 * 60 * 1000; // 12 hours cooldown (Popup only once per session basically)
 
     const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set());
+
+    useEffect(() => {
+        const loadSaved = () => {
+            try {
+                const saved = sessionStorage.getItem('elektrum_dismissed_alerts');
+                if (saved) {
+                    setDismissedAlerts(new Set(JSON.parse(saved)));
+                }
+            } catch (e) {
+                console.error('Failed to load hidden alerts', e);
+            }
+        };
+        loadSaved();
+    }, []);
+
+    const dismissAlert = (id: string) => {
+        setDismissedAlerts(prev => {
+            const next = new Set(prev);
+            next.add(id);
+            try {
+                sessionStorage.setItem('elektrum_dismissed_alerts', JSON.stringify(Array.from(next)));
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            } catch (e) { }
+            return next;
+        });
+    };
 
     // Request notification permission
     useEffect(() => {
@@ -65,11 +91,22 @@ export default function SensorAlerts({ sensorData, enableBrowserNotifications = 
         if (Notification.permission !== 'granted') return;
 
         const now = Date.now();
-        const lastNotified = lastNotifiedRef.current.get(alert.id) || 0;
+
+        // Track last notified via sessionStorage to prevent spam across page navigations
+        const storageKey = `elektrum_last_notified_${alert.id}`;
+        let lastNotified = 0;
+        try {
+            lastNotified = Number(sessionStorage.getItem(storageKey)) || 0;
+        } catch {
+            lastNotified = lastNotifiedRef.current.get(alert.id) || 0;
+        }
 
         if (now - lastNotified < NOTIFICATION_COOLDOWN) return;
 
         lastNotifiedRef.current.set(alert.id, now);
+        try {
+            sessionStorage.setItem(storageKey, String(now));
+        } catch { }
 
         const notification = new Notification(`⚠️ ${alert.title}`, {
             body: alert.message,
@@ -82,7 +119,7 @@ export default function SensorAlerts({ sensorData, enableBrowserNotifications = 
         if (alert.type === 'warning') {
             setTimeout(() => notification.close(), 10000);
         }
-    }, [enableBrowserNotifications]);
+    }, [enableBrowserNotifications, NOTIFICATION_COOLDOWN]);
 
     const alerts = useMemo(() => {
         const newAlerts: Alert[] = [];
@@ -274,7 +311,7 @@ export default function SensorAlerts({ sensorData, enableBrowserNotifications = 
             {visibleAlerts.map(alert => (
                 <div key={alert.id} className={`p-3 relative rounded-lg border ${getAlertClasses(alert.type)}`}>
                     <button
-                        onClick={() => setDismissedAlerts(prev => new Set(prev).add(alert.id))}
+                        onClick={() => dismissAlert(alert.id)}
                         className="absolute top-2 right-2 p-1 rounded hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
                         title="Dismiss"
                         aria-label="Dismiss alert"
