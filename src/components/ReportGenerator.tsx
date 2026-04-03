@@ -557,9 +557,9 @@ function generatePDF(stats: ReturnType<typeof calculateStatistics>, type: Report
         head: [['Metric', 'Average', 'Peak', 'Minimum']],
         body: overallRows,
         theme: 'striped',
-        headStyles: { fillColor: BRAND.slate900 as unknown as number[], textColor: 255 },
-        alternateRowStyles: { fillColor: BRAND.slate50 as unknown as number[] },
-        styles: { fontSize: 9, cellPadding: 3, textColor: BRAND.slate900 as unknown as number[] },
+        headStyles: { fillColor: BRAND.slate900 as unknown as [number, number, number], textColor: 255 },
+        alternateRowStyles: { fillColor: BRAND.slate50 as unknown as [number, number, number] },
+        styles: { fontSize: 9, cellPadding: 3, textColor: BRAND.slate900 as unknown as [number, number, number] },
         columnStyles: {
             0: { cellWidth: 32 },
         },
@@ -589,8 +589,8 @@ function generatePDF(stats: ReturnType<typeof calculateStatistics>, type: Report
         head: [['Room', 'Energy (kWh)', 'Share', 'Avg Power (W)', 'Peak Power (W)', 'Avg Current (A)']],
         body: roomRows,
         theme: 'striped',
-        headStyles: { fillColor: BRAND.primary as unknown as number[], textColor: 255 },
-        alternateRowStyles: { fillColor: BRAND.slate50 as unknown as number[] },
+        headStyles: { fillColor: BRAND.primary as unknown as [number, number, number], textColor: 255 },
+        alternateRowStyles: { fillColor: BRAND.slate50 as unknown as [number, number, number] },
         styles: { fontSize: 9, cellPadding: 3 },
     });
 
@@ -618,8 +618,8 @@ function generatePDF(stats: ReturnType<typeof calculateStatistics>, type: Report
         head: [['#', 'Time', 'Power (W)', 'Voltage (V)', 'Temp (°C)', 'Humidity (%)']],
         body: peakRows,
         theme: 'striped',
-        headStyles: { fillColor: BRAND.secondary as unknown as number[], textColor: 255 },
-        alternateRowStyles: { fillColor: BRAND.slate50 as unknown as number[] },
+        headStyles: { fillColor: BRAND.secondary as unknown as [number, number, number], textColor: 255 },
+        alternateRowStyles: { fillColor: BRAND.slate50 as unknown as [number, number, number] },
         styles: { fontSize: 8.5, cellPadding: 3 },
         columnStyles: {
             0: { cellWidth: 10 },
@@ -651,8 +651,8 @@ function generatePDF(stats: ReturnType<typeof calculateStatistics>, type: Report
         head: [['Date', 'Energy (kWh)', 'Avg Power (W)', 'Peak Power (W)', 'Avg Temp (°C)', 'Points']],
         body: dailyRows,
         theme: 'striped',
-        headStyles: { fillColor: BRAND.slate900 as unknown as number[], textColor: 255 },
-        alternateRowStyles: { fillColor: BRAND.slate50 as unknown as number[] },
+        headStyles: { fillColor: BRAND.slate900 as unknown as [number, number, number], textColor: 255 },
+        alternateRowStyles: { fillColor: BRAND.slate50 as unknown as [number, number, number] },
         styles: { fontSize: 8.5, cellPadding: 3 },
     });
 
