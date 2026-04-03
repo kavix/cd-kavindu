@@ -1,10 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL;
+import { buildBackendUrl } from '@/lib/backend';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const response = await fetch(`${BACKEND_URL}/health`, {
+    const response = await fetch(buildBackendUrl('/health'), {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

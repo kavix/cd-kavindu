@@ -36,10 +36,15 @@ export default function SensorDataForm() {
     setLoading(true);
 
     try {
+      const amps = parseFloat(formData.amps);
+      const watt = parseFloat(formData.watt);
+
       const payload = {
         volt: parseFloat(formData.volt),
-        amps: parseFloat(formData.amps),
-        watt: parseFloat(formData.watt),
+        current1: amps,
+        current2: 0,
+        current3: 0,
+        total_power: watt,
         temperature: parseFloat(formData.temperature),
         humidity: parseFloat(formData.humidity),
       };
@@ -49,7 +54,7 @@ export default function SensorDataForm() {
         throw new Error('All fields must be valid numbers');
       }
 
-      const res = await fetch('http://13.127.192.243:3000/send', {
+      const res = await fetch('/api/send', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

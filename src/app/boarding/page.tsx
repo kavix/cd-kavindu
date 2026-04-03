@@ -37,7 +37,7 @@ type SensorData = {
     temperature: number;
     humidity: number;
     time: string;
-    [key: string]: any; // Add index signature to allow dynamic access
+    [key: string]: number | string | undefined; // Allow dynamic access without `any`
 };
 
 type PredictionData = {
@@ -81,9 +81,10 @@ ChartJS.register(
     Filler,
 );
 
-const formatNumber = (value: number | undefined, decimals = 2) => {
-    if (typeof value !== 'number' || Number.isNaN(value)) return '—';
-    return value.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+const formatNumber = (value: number | string | undefined, decimals = 2) => {
+    const numericValue = typeof value === 'string' ? Number(value) : value;
+    if (typeof numericValue !== 'number' || Number.isNaN(numericValue)) return '—';
+    return numericValue.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 };
 
 export default function BoardingDashboard() {
@@ -96,7 +97,7 @@ export default function BoardingDashboard() {
 
     // Fetch live sensor data (last 50 readings)
     const { data: sensorData, error: sensorError } = useSWR<SensorData[]>(
-        'http://13.127.192.243:3000/sensors',
+        '/api/sensors',
         fetcher,
         { refreshInterval: 5000 }
     );
@@ -106,7 +107,7 @@ export default function BoardingDashboard() {
     const latestData = sensorData?.[sensorData.length - 1];
 
     const { data: predictionData, error: predictionError } = useSWR<PredictionData>(
-        'http://13.127.192.243:3000/predict',
+        '/api/predict',
         fetcher,
         { refreshInterval: 60000 } // Fetch predictions every minute
     );
@@ -135,7 +136,7 @@ export default function BoardingDashboard() {
     const powerDistributionData = useMemo(() => {
         if (!latestData) return { labels: [], datasets: [] };
         const labels = BOARDINGS.map(b => b.name);
-        const data = BOARDINGS.map(b => latestData[`power${b.id}`] || 0);
+        const data = BOARDINGS.map(b => Number(latestData[`power${b.id}`] ?? 0));
         const backgroundColors = BOARDINGS.map(b => b.color);
 
         return {
@@ -150,7 +151,7 @@ export default function BoardingDashboard() {
     const currentDistributionData = useMemo(() => {
         if (!latestData) return { labels: [], datasets: [] };
         const labels = BOARDINGS.map(b => b.name);
-        const data = BOARDINGS.map(b => latestData[`current${b.id}`] || 0);
+        const data = BOARDINGS.map(b => Number(latestData[`current${b.id}`] ?? 0));
         const backgroundColors = BOARDINGS.map(b => b.color);
 
         return {
@@ -165,7 +166,7 @@ export default function BoardingDashboard() {
     const powerBarData = useMemo(() => {
         if (!latestData) return { labels: [], datasets: [] };
         const labels = BOARDINGS.map(b => b.name);
-        const data = BOARDINGS.map(b => latestData[`power${b.id}`] || 0);
+        const data = BOARDINGS.map(b => Number(latestData[`power${b.id}`] ?? 0));
         const backgroundColors = BOARDINGS.map(b => b.color);
 
         return {

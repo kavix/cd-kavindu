@@ -1,10 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
-const BACKEND_URL = 'http://13.203.221.0';
+import { buildBackendUrl } from '@/lib/backend';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const response = await fetch(`${BACKEND_URL}/predict`, {
+    const response = await fetch(buildBackendUrl('/predict'), {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

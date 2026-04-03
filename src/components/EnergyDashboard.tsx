@@ -62,7 +62,7 @@ export default function EnergyDashboard() {
     error: currentError,
     isLoading: currentLoading,
     mutate: mutateCurrent,
-  } = useSWR<CurrentResponse>('http://13.127.192.243:3000/current', fetcher, {
+  } = useSWR<CurrentResponse>('/api/current', fetcher, {
     refreshInterval: 2000,
   });
 
@@ -71,7 +71,7 @@ export default function EnergyDashboard() {
     error: predictionError,
     isLoading: predictionLoading,
     mutate: mutatePrediction,
-  } = useSWR<PredictResponse>('http://13.127.192.243:3000/predict', fetcher, {
+  } = useSWR<PredictResponse>('/api/predict', fetcher, {
     refreshInterval: 10000,
   });
 

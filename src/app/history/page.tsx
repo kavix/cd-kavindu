@@ -78,18 +78,21 @@ export default function HistoryPage() {
         throw new Error('Please choose both start and end dates.');
       }
 
-      // Use Next.js API route to avoid CORS issues
-      const url = new URL('http://13.127.192.243:3000/history');
-      url.searchParams.set('start', new Date(startToUse).toISOString());
-      url.searchParams.set('end', new Date(endToUse).toISOString());
-      url.searchParams.set('limit', '100');
+      const params = new URLSearchParams({
+        start: new Date(startToUse).toISOString(),
+        end: new Date(endToUse).toISOString(),
+        limit: '100',
+      });
 
-      const res = await fetch(url.toString());
+      const res = await fetch(`/api/history?${params.toString()}`);
       if (!res.ok) {
         throw new Error('Could not fetch history.');
       }
       const json = await res.json();
-      setEntries(Array.isArray(json) ? json : []);
+
+      const items = Array.isArray(json) ? json : [];
+      // /history returns newest first; reverse for chronological charts.
+      setEntries(items.slice().reverse());
       setHasFetched(true);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unexpected error';

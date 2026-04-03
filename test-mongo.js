@@ -1,14 +1,20 @@
 const { MongoClient } = require('mongodb');
 
-const uri = 'mongodb+srv://blacky:2419624196@voltura.vl2m5kl.mongodb.net/volData?retryWrites=true&w=majority';
+const uri = process.env.MONGODB_URI;
+if (!uri) {
+  console.error('Missing MONGODB_URI env var.');
+  process.exit(1);
+}
+
 const client = new MongoClient(uri);
 
 async function run() {
   try {
     await client.connect();
-    const db = client.db('volData');
+    const dbName = process.env.MONGODB_DB || 'volData';
+    const db = client.db(dbName);
 
-    const collectionName = 'finalVolData';
+    const collectionName = process.env.MONGODB_COLLECTION || 'finalVolData';
     console.log(`--- Collection: ${collectionName} ---`);
     const doc = await db.collection(collectionName).findOne({});
     console.log(JSON.stringify(doc, null, 2));

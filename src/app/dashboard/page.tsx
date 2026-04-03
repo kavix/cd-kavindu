@@ -99,19 +99,25 @@ export default function Dashboard() {
         { refreshInterval: 5000 }
     );
 
-    // Compute date range for history filter
-    const now = Date.now();
-    const rangeMs = range === '1h' ? 1 * 60 * 60 * 1000
-        : range === '6h' ? 6 * 60 * 60 * 1000
-            : range === '24h' ? 24 * 60 * 60 * 1000
-                : 7 * 24 * 60 * 60 * 1000;
-    const startISO = new Date(now - rangeMs).toISOString();
-    const endISO = new Date(now).toISOString();
-
     // Fetch historical data for trends (range-aware)
     const { data: historyData, error: historyError } = useSWR<SensorData[]>(
-        `/api/history/mongo?start=${startISO}&end=${endISO}&limit=${range === '7d' ? 10000 : 4000}`,
-        fetcher,
+        `history:${range}`,
+        async () => {
+            const now = Date.now();
+            const rangeMs = range === '1h' ? 1 * 60 * 60 * 1000
+                : range === '6h' ? 6 * 60 * 60 * 1000
+                    : range === '24h' ? 24 * 60 * 60 * 1000
+                        : 7 * 24 * 60 * 60 * 1000;
+
+            const params = new URLSearchParams({
+                start: new Date(now - rangeMs).toISOString(),
+                end: new Date(now).toISOString(),
+                // FastAPI docs: max 1000
+                limit: '1000',
+            });
+
+            return fetcher(`/api/history/mongo?${params.toString()}`);
+        },
         { refreshInterval: 30000 }
     );
 
@@ -334,7 +340,7 @@ export default function Dashboard() {
                     {/* Page Title */}
                     <div>
                         <h2 className="text-2xl font-bold text-slate-900">Home Energy Dashboard</h2>
-                        <p className="text-slate-600 mt-1">Real-time monitoring of your home's energy consumption</p>
+                        <p className="text-slate-600 mt-1">Real-time monitoring of your home&apos;s energy consumption</p>
                     </div>
 
                     {/* Sensor Alerts */}

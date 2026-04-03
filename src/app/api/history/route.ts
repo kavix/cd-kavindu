@@ -1,20 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const BACKEND_URL = 'http://13.203.221.0';
+import { buildBackendUrl } from '@/lib/backend';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const start = searchParams.get('start');
     const end = searchParams.get('end');
-    const limit = searchParams.get('limit') || '100';
+    const limitRaw = searchParams.get('limit');
+    const parsedLimit = limitRaw ? Number.parseInt(limitRaw, 10) : 100;
+    const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 1000) : 100;
 
-    const url = new URL(`${BACKEND_URL}/history`);
-    if (start) url.searchParams.set('start', start);
-    if (end) url.searchParams.set('end', end);
-    url.searchParams.set('limit', limit);
+    const url = buildBackendUrl('/history', {
+      start: start || undefined,
+      end: end || undefined,
+      limit,
+    });
 
-    const response = await fetch(url.toString(), {
+    const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

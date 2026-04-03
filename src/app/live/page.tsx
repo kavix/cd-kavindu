@@ -18,12 +18,16 @@ export default function LiveMonitor() {
     }, [isLoaded, userId, router]);
 
     if (!isLoaded || !userId) {
-        return <div>Loading...</div>;
+        return (
+            <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+                <div className="text-sm text-slate-600">Loading...</div>
+            </div>
+        );
     }
 
     return (
         <div className="min-h-screen bg-slate-50">
-            <header className="border-b border-slate-200 bg-white">
+            <header className="border-b border-slate-200 bg-white sticky top-0 z-50">
                 <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
                     <div className="flex items-center gap-6">
                         <div className="flex items-center gap-2">
@@ -59,10 +63,8 @@ export default function LiveMonitor() {
             </header>
             <main className="mx-auto max-w-7xl py-8 px-6">
                 <div className="mb-6">
-                    <h2 className="text-3xl font-bold text-gray-800">Real-Time Sensor Monitor</h2>
-                    <p className="mt-2 text-sm text-gray-600">
-                        Live data updating every 5 seconds from MongoDB
-                    </p>
+                    <h2 className="text-3xl font-bold text-slate-900">Real-time sensor monitor</h2>
+                    <p className="mt-2 text-sm text-slate-600">Live data updates every 5 seconds.</p>
                 </div>
                 <LiveSensorChart />
             </main>

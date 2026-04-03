@@ -22,32 +22,20 @@ CLERK_SECRET_KEY=sk_test_...
 ## Optional Environment Variables
 
 ### API Configuration (Server-Side Only)
-```bash
-NEXT_PUBLIC_API_URL=http://3.108.238.200
-# or use the EC2 hostname:
-# NEXT_PUBLIC_API_URL=http://ec2-3-108-238-200.ap-south-1.compute.amazonaws.com
-```
+The backend base URL is **hardcoded** in `src/lib/backend.ts`.
 
-**Default:** `http://3.108.238.200` (if not set)
+**Current value:** `http://13.127.192.243:3000`
 
-**Note:** This is now used server-side only in Next.js API routes to avoid CORS issues. The frontend components call Next.js API routes (`/api/*`) which then proxy requests to the backend.
-
-**Where used:**
-- `src/app/api/current/route.ts` - Proxies `/current` endpoint
-- `src/app/api/predict/route.ts` - Proxies `/predict` endpoint
-- `src/app/api/health/route.ts` - Proxies `/health` endpoint
-- `src/app/api/send/route.ts` - Proxies `/send` endpoint
-- `src/app/api/history/route.ts` - Proxies `/history` endpoint
+**Note:** The frontend components call Next.js API routes (`/api/*`) which then proxy requests to the backend (avoids CORS issues).
 
 ### MongoDB Configuration
 ```bash
-MONGODB_URI=mongodb+srv://blacky:2419624196@voltura.vl2m5kl.mongodb.net/volData?retryWrites=true&w=majority
-MONGODB_DB=voltura
-MONGODB_COLLECTION=volData
+MONGODB_URI=mongodb+srv://<username>:<password>@<cluster>/<db>?retryWrites=true&w=majority
+MONGODB_DB=your_db_name
+MONGODB_COLLECTION=your_collection
 ```
 
-**Where used:**
-- `src/app/api/history/mongo/route.ts` - Direct MongoDB queries
+**Status:** Deprecated (the Next.js app no longer queries MongoDB directly).
 
 ## Setup Instructions
 
