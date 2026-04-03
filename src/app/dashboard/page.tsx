@@ -372,7 +372,8 @@ export default function Dashboard() {
         return {
             loadBalancing: loadBalancingMsg,
             offPeak: offPeakMsg,
-            phantomDrain: phantomDrainMsg
+            phantomDrain: phantomDrainMsg,
+            rawPhantomDrainW: avgNightUsage * 1000
         };
     }, [analytics.roomDistribution, analytics.hourlyUsage, roomsEnabled]);
 
@@ -430,9 +431,13 @@ export default function Dashboard() {
                     </div>
 
                     {/* Sensor Alerts */}
-                    {analytics.latest && (
-                        <SensorAlerts sensorData={analytics.latest} enableBrowserNotifications={true} />
-                    )}
+                    <div className="mb-6">
+                        <SensorAlerts
+                            sensorData={analytics.latest}
+                            enableBrowserNotifications={true}
+                            phantomNightAvgW={aiInsights.rawPhantomDrainW}
+                        />
+                    </div>
 
                     {/* Error States */}
                     {(sensorError || historyError) && (
@@ -912,29 +917,6 @@ export default function Dashboard() {
                             </table>
                         </div>
                     </div>
-
-                    {/* AI Insights Suggestions */}
-                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-100 p-6 shadow-sm mb-6">
-                        <div className="flex items-center gap-3 mb-4">
-                            <span className="text-2xl">🤖</span>
-                            <h3 className="text-lg font-bold text-slate-900">AI Intelligence: What to do with this Data?</h3>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div className="bg-white/60 p-4 rounded-xl backdrop-blur-sm shadow-sm border border-blue-200/50">
-                                <h4 className="font-bold text-blue-900 mb-2 flex items-center gap-2"><span className="text-blue-500">⚖️</span> Load Balancing</h4>
-                                <p className="text-sm text-blue-800 leading-relaxed">{aiInsights.loadBalancing}</p>
-                            </div>
-                            <div className="bg-white/60 p-4 rounded-xl backdrop-blur-sm shadow-sm border border-indigo-200/50">
-                                <h4 className="font-bold text-indigo-900 mb-2 flex items-center gap-2"><span className="text-indigo-500">⏰</span> Off-Peak Planning</h4>
-                                <p className="text-sm text-indigo-800 leading-relaxed">{aiInsights.offPeak}</p>
-                            </div>
-                            <div className="bg-white/60 p-4 rounded-xl backdrop-blur-sm shadow-sm border border-purple-200/50">
-                                <h4 className="font-bold text-purple-900 mb-2 flex items-center gap-2"><span className="text-purple-500">👻</span> Phantom Drain Detection</h4>
-                                <p className="text-sm text-purple-800 leading-relaxed">{aiInsights.phantomDrain}</p>
-                            </div>
-                        </div>
-                    </div>
-
                     {/* Footer */}
                     <div className="text-center py-6 text-sm text-slate-500">
                         <p>⚡ Elektrum - Where Energy Meets Intelligence • Data updates every 5 seconds</p>

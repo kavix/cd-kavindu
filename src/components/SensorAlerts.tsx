@@ -41,9 +41,10 @@ const THRESHOLDS = {
 type SensorAlertsProps = {
     sensorData: SensorData | null;
     enableBrowserNotifications?: boolean;
+    phantomNightAvgW?: number | null;
 };
 
-export default function SensorAlerts({ sensorData, enableBrowserNotifications = true }: SensorAlertsProps) {
+export default function SensorAlerts({ sensorData, enableBrowserNotifications = true, phantomNightAvgW }: SensorAlertsProps) {
     const lastNotifiedRef = useRef<Map<string, number>>(new Map());
     const NOTIFICATION_COOLDOWN = 12 * 60 * 60 * 1000; // 12 hours cooldown (Popup only once per session basically)
 
@@ -144,6 +145,19 @@ export default function SensorAlerts({ sensorData, enableBrowserNotifications = 
             message: 'Turn off lights and fans when leaving a room to conserve energy.',
             timestamp: today,
         });
+
+        // AI Intelligence Phantom Drain detection
+        if (phantomNightAvgW && phantomNightAvgW > 150) {
+            newAlerts.push({
+                id: 'phantom-drain',
+                type: 'warning',
+                title: 'Phantom Drain Detected',
+                message: `Your baseline consumption during sleeping hours (12 AM - 5 AM) averages ${Math.round(phantomNightAvgW)}W. Find and unplug standby devices to lower your bill!`,
+                timestamp: today,
+                value: Math.round(phantomNightAvgW),
+                unit: 'W'
+            });
+        }
 
         if (!sensorData) {
             return newAlerts;
@@ -259,18 +273,18 @@ export default function SensorAlerts({ sensorData, enableBrowserNotifications = 
         }
 
         return newAlerts;
-    }, [sensorData]);
+    }, [sensorData, phantomNightAvgW]);
 
     useEffect(() => {
-        if (!sensorData) return;
         if (!enableBrowserNotifications) return;
 
         for (const alert of alerts) {
             if (alert.type === 'danger' || alert.type === 'warning') {
+                // Ensure phantom drain or other alerts still get notified even if sensorData is null
                 sendBrowserNotification(alert);
             }
         }
-    }, [alerts, enableBrowserNotifications, sensorData, sendBrowserNotification]);
+    }, [alerts, enableBrowserNotifications, sendBrowserNotification]);
 
     const getAlertIcon = (type: Alert['type']) => {
         switch (type) {
