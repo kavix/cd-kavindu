@@ -307,25 +307,25 @@ export default function SensorAlerts({ sensorData, enableBrowserNotifications = 
     }
 
     return (
-        <div className="space-y-3 max-h-96 overflow-y-auto">
+        <div className="space-y-2 max-h-96 overflow-y-auto">
             {visibleAlerts.map(alert => (
-                <div key={alert.id} className={`p-3 relative rounded-lg border ${getAlertClasses(alert.type)}`}>
+                <div key={alert.id} className={`p-2.5 relative rounded-md border ${getAlertClasses(alert.type)}`}>
                     <button
                         onClick={() => dismissAlert(alert.id)}
-                        className="absolute top-2 right-2 p-1 rounded hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                        className="absolute top-1 right-1 p-1 rounded hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
                         title="Dismiss"
                         aria-label="Dismiss alert"
                     >
-                        <svg className="w-4 h-4 opacity-50 hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-3.5 h-3.5 opacity-50 hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
                         </svg>
                     </button>
                     <div className="flex items-start">
-                        <div className="text-xl mr-3">{getAlertIcon(alert.type)}</div>
+                        <div className="text-lg mr-2 leading-none mt-0.5">{getAlertIcon(alert.type)}</div>
                         <div className="flex-1 pr-6">
-                            <h4 className="font-bold">{alert.title}</h4>
-                            <p className="text-sm">{alert.message}</p>
-                            <p suppressHydrationWarning className="mt-1 text-xs opacity-70">{alert.timestamp.toLocaleString()}</p>
+                            <h4 className="text-sm font-bold">{alert.title}</h4>
+                            <p className="text-xs mt-0.5 leading-snug opacity-90">{alert.message}</p>
+                            <p suppressHydrationWarning className="mt-1.5 text-[10px] opacity-70">{alert.timestamp.toLocaleString()}</p>
                         </div>
                     </div>
                 </div>
