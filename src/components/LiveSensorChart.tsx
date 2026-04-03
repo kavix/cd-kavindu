@@ -214,8 +214,12 @@ export default function LiveSensorChart() {
                     <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={formattedData}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                            <XAxis dataKey="formattedTime" tick={{ fontSize: 12 }} />
-                            <YAxis tick={{ fontSize: 12 }} />
+                            <XAxis dataKey="formattedTime" tick={{ fontSize: 12 }} interval="preserveStartEnd" minTickGap={30} />
+                            <YAxis
+                                tick={{ fontSize: 12 }}
+                                tickFormatter={(value) => `${value}W`}
+                                domain={[0, 'auto']}
+                            />
                             <Tooltip
                                 contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0' }}
                                 formatter={(value: number, name: string) => [formatNumber(value) + ' W', name]}
@@ -236,8 +240,12 @@ export default function LiveSensorChart() {
                     <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={formattedData}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                            <XAxis dataKey="formattedTime" tick={{ fontSize: 12 }} />
-                            <YAxis tick={{ fontSize: 12 }} />
+                            <XAxis dataKey="formattedTime" tick={{ fontSize: 12 }} interval="preserveStartEnd" minTickGap={30} />
+                            <YAxis
+                                tick={{ fontSize: 12 }}
+                                tickFormatter={(value) => `${value}A`}
+                                domain={[0, 'auto']}
+                            />
                             <Tooltip
                                 contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0' }}
                                 formatter={(value: number, name: string) => [formatNumber(value) + ' A', name]}
@@ -258,10 +266,28 @@ export default function LiveSensorChart() {
                     <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={formattedData}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                            <XAxis dataKey="formattedTime" tick={{ fontSize: 12 }} />
-                            <YAxis yAxisId="power" orientation="left" tick={{ fontSize: 12 }} />
-                            <YAxis yAxisId="voltage" orientation="right" tick={{ fontSize: 12 }} />
-                            <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0' }} />
+                            <XAxis dataKey="formattedTime" tick={{ fontSize: 12 }} interval="preserveStartEnd" minTickGap={30} />
+                            <YAxis
+                                yAxisId="power"
+                                orientation="left"
+                                tick={{ fontSize: 12 }}
+                                tickFormatter={(val) => `${val}W`}
+                                domain={[0, 'auto']}
+                            />
+                            <YAxis
+                                yAxisId="voltage"
+                                orientation="right"
+                                tick={{ fontSize: 12 }}
+                                tickFormatter={(val) => `${val}V`}
+                                domain={['dataMin - 10', 'dataMax + 10']}
+                            />
+                            <Tooltip
+                                contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0' }}
+                                formatter={(value: number, name: string) => [
+                                    formatNumber(value) + (name.includes('Voltage') ? ' V' : ' W'),
+                                    name
+                                ]}
+                            />
                             <Legend />
                             <Line yAxisId="power" type="monotone" dataKey="total_power" stroke="#111827" strokeWidth={2} name="Total Power (W)" dot={false} />
                             <Line yAxisId="voltage" type="monotone" dataKey="volt" stroke="#8b5cf6" strokeWidth={2} name="Voltage (V)" dot={false} />
@@ -277,10 +303,28 @@ export default function LiveSensorChart() {
                     <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={formattedData}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                            <XAxis dataKey="formattedTime" tick={{ fontSize: 12 }} />
-                            <YAxis yAxisId="temp" orientation="left" tick={{ fontSize: 12 }} domain={['auto', 'auto']} />
-                            <YAxis yAxisId="humidity" orientation="right" tick={{ fontSize: 12 }} domain={[0, 100]} />
-                            <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0' }} />
+                            <XAxis dataKey="formattedTime" tick={{ fontSize: 12 }} interval="preserveStartEnd" minTickGap={30} />
+                            <YAxis
+                                yAxisId="temp"
+                                orientation="left"
+                                tick={{ fontSize: 12 }}
+                                tickFormatter={(val) => `${val}°C`}
+                                domain={['dataMin - 2', 'dataMax + 2']}
+                            />
+                            <YAxis
+                                yAxisId="humidity"
+                                orientation="right"
+                                tick={{ fontSize: 12 }}
+                                tickFormatter={(val) => `${val}%`}
+                                domain={[0, 100]}
+                            />
+                            <Tooltip
+                                contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0' }}
+                                formatter={(value: number, name: string) => [
+                                    formatNumber(value) + (name.includes('Temperature') ? ' °C' : ' %'),
+                                    name
+                                ]}
+                            />
                             <Legend />
                             <Line yAxisId="temp" type="monotone" dataKey="temperature" stroke="#ef4444" strokeWidth={2} name="Temperature (°C)" dot={false} />
                             <Line yAxisId="humidity" type="monotone" dataKey="humidity" stroke="#3b82f6" strokeWidth={2} name="Humidity (%)" dot={false} />

@@ -232,18 +232,49 @@ export default function Dashboard() {
                     padding: 15,
                 },
             },
+            tooltip: {
+                mode: 'index' as const,
+                intersect: false,
+                callbacks: {
+                    label: (context: { dataset: { label?: string }; parsed: { y: number | null } }) => {
+                        let label = context.dataset.label || '';
+                        if (label) {
+                            label += ': ';
+                        }
+                        if (context.parsed.y !== null) {
+                            label += parseFloat(context.parsed.y.toString()).toFixed(2);
+                        }
+                        return label;
+                    }
+                }
+            }
         },
         scales: {
             y: {
                 beginAtZero: true,
                 grid: { color: 'rgba(0, 0, 0, 0.05)' },
-                ticks: { font: { family: 'system-ui', size: 11 }, color: '#64748b' },
+                ticks: {
+                    font: { family: 'system-ui', size: 11 },
+                    color: '#64748b',
+                    callback: (value: number | string) => parseFloat(value.toString()).toFixed(2)
+                },
             },
             x: {
                 grid: { display: false },
-                ticks: { font: { family: 'system-ui', size: 11 }, color: '#64748b' },
+                ticks: {
+                    font: { family: 'system-ui', size: 11 },
+                    color: '#64748b',
+                    maxTicksLimit: 10,
+                    maxRotation: 45,
+                    minRotation: 0,
+                },
             },
         },
+        interaction: {
+            mode: 'nearest' as const,
+            axis: 'x' as const,
+            intersect: false
+        }
     }), []);
 
     const powerTrendData = useMemo(() => ({
@@ -286,6 +317,64 @@ export default function Dashboard() {
         },
         cutout: '65%',
     }), []);
+
+    const aiInsights = useMemo(() => {
+        // 1. Load Balancing
+        const activeRooms = ROOMS.filter(r => roomsEnabled[r.id as 1 | 2 | 3]);
+        let maxRoom: typeof ROOMS[0] | null = null;
+        let maxLoad = 0;
+        let totalLoad = 0;
+
+        activeRooms.forEach(room => {
+            const load = analytics.roomDistribution[room.id - 1] || 0;
+            totalLoad += load;
+            if (load > maxLoad) {
+                maxLoad = load;
+                maxRoom = room;
+            }
+        });
+
+        const maxLoadPercent = totalLoad > 0 ? (maxLoad / totalLoad) * 100 : 0;
+        const loadBalancingMsg = maxRoom && maxLoadPercent > 40
+            ? `Your ${maxRoom.name} is drawing ${maxLoadPercent.toFixed(0)}% of your total current load (${(maxLoad / 1000).toFixed(2)} kW). Try redistributing heavy appliances (ACs, Irons) from this phase to prevent tripping breakers and wiring overheating.`
+            : `Your power load is currently well-balanced across your rooms. No single room is drawing an excessive majority of your total power.`;
+
+        // 2. Off-Peak Planning
+        let lowestHour = 'N/A';
+        let lowestUsage = Infinity;
+        analytics.hourlyUsage.forEach(d => {
+            if (d.usage < lowestUsage && d.usage > 0) {
+                lowestUsage = d.usage;
+                lowestHour = d.hour;
+            }
+        });
+
+        const offPeakMsg = lowestHour !== 'N/A' && lowestUsage < Infinity
+            ? `Your historical lowest power consumption occurs around ${lowestHour} (Avg: ${lowestUsage.toFixed(2)} kW). Schedule heavy water pumping, EV charging, or washing machines during this time to maximize off-peak efficiency and save on tariffs.`
+            : `We need more 24-hour historical data to accurately predict your best off-peak run times.`;
+
+        // 3. Phantom Drain
+        const nightHours = analytics.hourlyUsage.filter(d => {
+            const hr = parseInt(d.hour);
+            return hr >= 0 && hr <= 5; // 12 AM to 5 AM
+        });
+
+        let avgNightUsage = 0;
+        if (nightHours.length > 0) {
+            avgNightUsage = nightHours.reduce((sum, d) => sum + d.usage, 0) / nightHours.length;
+        }
+
+        // Check if baseline night usage > 150W
+        const phantomDrainMsg = avgNightUsage > 0.15
+            ? `Your baseline power consumption during sleeping hours (12 AM - 5 AM) averages ${avgNightUsage.toFixed(2)} kW (${Math.round(avgNightUsage * 1000)}W). This indicates a phantom drain. Locating & unplugging these standby devices overnight will drop your monthly bill.`
+            : `Your baseline power consumption during sleeping hours is very low (${Math.round(avgNightUsage * 1000)}W), indicating excellent management of standby vampiric drains. Great job!`;
+
+        return {
+            loadBalancing: loadBalancingMsg,
+            offPeak: offPeakMsg,
+            phantomDrain: phantomDrainMsg
+        };
+    }, [analytics.roomDistribution, analytics.hourlyUsage, roomsEnabled]);
 
     useEffect(() => {
         if (isLoaded && !userId) {
@@ -821,6 +910,28 @@ export default function Dashboard() {
                                     ))}
                                 </tbody>
                             </table>
+                        </div>
+                    </div>
+
+                    {/* AI Insights Suggestions */}
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-100 p-6 shadow-sm mb-6">
+                        <div className="flex items-center gap-3 mb-4">
+                            <span className="text-2xl">🤖</span>
+                            <h3 className="text-lg font-bold text-slate-900">AI Intelligence: What to do with this Data?</h3>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div className="bg-white/60 p-4 rounded-xl backdrop-blur-sm shadow-sm border border-blue-200/50">
+                                <h4 className="font-bold text-blue-900 mb-2 flex items-center gap-2"><span className="text-blue-500">⚖️</span> Load Balancing</h4>
+                                <p className="text-sm text-blue-800 leading-relaxed">{aiInsights.loadBalancing}</p>
+                            </div>
+                            <div className="bg-white/60 p-4 rounded-xl backdrop-blur-sm shadow-sm border border-indigo-200/50">
+                                <h4 className="font-bold text-indigo-900 mb-2 flex items-center gap-2"><span className="text-indigo-500">⏰</span> Off-Peak Planning</h4>
+                                <p className="text-sm text-indigo-800 leading-relaxed">{aiInsights.offPeak}</p>
+                            </div>
+                            <div className="bg-white/60 p-4 rounded-xl backdrop-blur-sm shadow-sm border border-purple-200/50">
+                                <h4 className="font-bold text-purple-900 mb-2 flex items-center gap-2"><span className="text-purple-500">👻</span> Phantom Drain Detection</h4>
+                                <p className="text-sm text-purple-800 leading-relaxed">{aiInsights.phantomDrain}</p>
+                            </div>
                         </div>
                     </div>
 
