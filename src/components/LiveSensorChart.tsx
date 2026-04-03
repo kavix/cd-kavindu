@@ -6,7 +6,12 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import SensorAlerts from './SensorAlerts';
 
 // Standard fetcher for SWR
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+const fetcher = async (url: string) => {
+    const res = await fetch(url);
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || 'Failed to fetch data');
+    return Array.isArray(json) ? json : json.data && Array.isArray(json.data) ? json.data : [];
+};
 
 type SensorData = {
     _id: string;
@@ -108,7 +113,7 @@ export default function LiveSensorChart() {
 
     if (error) return <div className="p-4 text-red-600">Failed to load data</div>;
     if (isLoading) return <div className="p-4">Loading live data...</div>;
-    if (!data || data.length === 0) return <div className="p-4">No data available</div>;
+    if (!Array.isArray(data) || data.length === 0) return <div className="p-4">No data available</div>;
 
     // Get latest reading
     const latest = data[data.length - 1];

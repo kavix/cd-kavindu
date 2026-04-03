@@ -9,6 +9,7 @@ import { subHours, subDays, startOfDay, format } from 'date-fns';
 import HealthCheck from '@/components/HealthCheck';
 import HistoryChart from '@/components/HistoryChart';
 import ReportGenerator from '@/components/ReportGenerator';
+import EnergyPreloader from '@/components/EnergyPreloader';
 
 type HistoryEntry = {
   volt: number;
@@ -175,9 +176,7 @@ export default function HistoryPage() {
         </div>
       </header>
       {!isLoaded || !userId ? (
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="text-slate-600">Loading...</div>
-        </div>
+        <EnergyPreloader />
       ) : (
         <div className="mx-auto max-w-6xl px-6 py-10">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

@@ -6,6 +6,7 @@ import { useEffect } from 'react';
 import Link from 'next/link';
 import LiveSensorChart from '@/components/LiveSensorChart';
 import HealthCheck from '@/components/HealthCheck';
+import EnergyPreloader from '@/components/EnergyPreloader';
 
 export default function LiveMonitor() {
     const { isLoaded, userId } = useAuth();
@@ -18,11 +19,7 @@ export default function LiveMonitor() {
     }, [isLoaded, userId, router]);
 
     if (!isLoaded || !userId) {
-        return (
-            <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-                <div className="text-sm text-slate-600">Loading...</div>
-            </div>
-        );
+        return <EnergyPreloader />;
     }
 
     return (
