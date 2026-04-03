@@ -55,11 +55,11 @@ type PredictionData = {
     model: string;
 };
 
-// Room configuration - consistent across the app
+// Room configuration
 const BOARDINGS = [
-    { id: 1, name: 'Boarding 01', icon: '🔌', color: '#B4D3D9', bgColor: 'bg-custom-blue/30', borderColor: 'border-custom-blue', textColor: 'text-custom-purple-dark' },
-    { id: 2, name: 'Boarding 02', icon: '🔌', color: '#BDA6CE', bgColor: 'bg-custom-purple-light/30', borderColor: 'border-custom-purple-light', textColor: 'text-custom-purple-dark' },
-    { id: 3, name: 'Boarding 03', icon: '🔌', color: '#9B8EC7', bgColor: 'bg-custom-purple-dark/30', borderColor: 'border-custom-purple-dark', textColor: 'text-custom-purple-dark' },
+    { id: 1, name: 'Boarding 01', icon: '🔌', color: '#f97316', bgColor: 'bg-orange-50', borderColor: 'border-orange-200', textColor: 'text-orange-700' },
+    { id: 2, name: 'Boarding 02', icon: '🔌', color: '#f43f5e', bgColor: 'bg-rose-50', borderColor: 'border-rose-200', textColor: 'text-rose-700' },
+    { id: 3, name: 'Boarding 03', icon: '🔌', color: '#0ea5e9', bgColor: 'bg-sky-50', borderColor: 'border-sky-200', textColor: 'text-sky-700' },
 ];
 
 const fetcher = async (url: string) => {
@@ -124,8 +124,8 @@ export default function BoardingDashboard() {
                 {
                     label: 'Total Power (W)',
                     data: filteredData.map(d => d.total_power),
-                    borderColor: '#8b5cf6',
-                    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                    borderColor: '#f97316',
+                    backgroundColor: 'rgba(249, 115, 22, 0.1)',
                     fill: true,
                     tension: 0.4,
                 },
@@ -195,47 +195,54 @@ export default function BoardingDashboard() {
     const estimatedCost = totalEnergyKwh * costPerKwh;
 
     return (
-        <div className="min-h-screen bg-custom-bg text-gray-800">
-            <header className="bg-white shadow-md p-4 flex justify-between items-center">
-                <h1 className="text-xl font-bold text-custom-purple-dark">Boarding Vessel Analytics</h1>
-                <div className="flex items-center gap-4">
-                    <Link href="/selection" className="text-sm text-gray-600 hover:text-black">Back to Selection</Link>
+        <div className="min-h-screen bg-slate-50 text-slate-900">
+            <header className="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center sticky top-0 z-10">
+                <div className="flex items-center gap-3">
+                    <span className="text-2xl">⚡</span>
+                    <h1 className="text-2xl font-bold bg-gradient-to-r from-orange-500 to-rose-500 bg-clip-text text-transparent">
+                        Elektrum Boarding
+                    </h1>
+                </div>
+                <div className="flex items-center gap-6">
+                    <Link href="/selection" className="text-sm font-medium text-slate-500 transition hover:text-slate-900">
+                        Back to Selection
+                    </Link>
                     <UserButton afterSignOutUrl="/" />
                 </div>
             </header>
 
             <main className="p-6 space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <div className="bg-white p-4 rounded-lg shadow-lg">
-                        <h3 className="text-sm font-medium text-gray-500">Total Power</h3>
-                        <p className="mt-1 text-3xl font-semibold">{formatNumber(latestData?.total_power)} W</p>
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                        <h3 className="text-sm font-medium text-slate-500">Total Power</h3>
+                        <p className="mt-1 text-3xl font-semibold text-slate-800">{formatNumber(latestData?.total_power)} W</p>
                     </div>
-                    <div className="bg-white p-4 rounded-lg shadow-lg">
-                        <h3 className="text-sm font-medium text-gray-500">Total Energy (24h)</h3>
-                        <p className="mt-1 text-3xl font-semibold">{formatNumber(totalEnergyKwh)} kWh</p>
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                        <h3 className="text-sm font-medium text-slate-500">Total Energy (24h)</h3>
+                        <p className="mt-1 text-3xl font-semibold text-slate-800">{formatNumber(totalEnergyKwh)} kWh</p>
                     </div>
-                    <div className="bg-white p-4 rounded-lg shadow-lg">
-                        <h3 className="text-sm font-medium text-gray-500">Estimated Cost (24h)</h3>
-                        <p className="mt-1 text-3xl font-semibold">${formatNumber(estimatedCost)}</p>
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                        <h3 className="text-sm font-medium text-slate-500">Estimated Cost (24h)</h3>
+                        <p className="mt-1 text-3xl font-semibold text-slate-800">Rs. {formatNumber(estimatedCost)}</p>
                     </div>
-                    <div className="bg-white p-4 rounded-lg shadow-lg">
-                        <h3 className="text-sm font-medium text-gray-500">Cost per kWh ($)</h3>
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                        <h3 className="text-sm font-medium text-slate-500">Cost per kWh (Rs.)</h3>
                         <input
                             type="number"
                             value={costPerKwh}
                             onChange={(e) => setCostPerKwh(parseFloat(e.target.value))}
-                            className="mt-1 text-3xl font-semibold bg-transparent w-full"
+                            className="mt-1 text-3xl font-semibold text-slate-800 bg-transparent w-full focus:outline-none"
                         />
                     </div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="lg:col-span-2 bg-white p-6 rounded-lg shadow-lg">
-                        <h2 className="text-lg font-semibold mb-4 text-custom-purple-dark">Power Consumption</h2>
+                    <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                        <h2 className="text-lg font-semibold mb-4 text-slate-800">Power Consumption</h2>
                         <Line data={chartData} />
                     </div>
-                    <div className="bg-white p-6 rounded-lg shadow-lg flex flex-col items-center">
-                        <h2 className="text-lg font-semibold mb-4 text-custom-purple-dark">Power Distribution</h2>
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center">
+                        <h2 className="text-lg font-semibold mb-4 text-slate-800">Power Distribution</h2>
                         <div style={{ width: '200px', height: '200px' }}>
                             <Doughnut data={powerDistributionData} />
                         </div>
@@ -243,45 +250,45 @@ export default function BoardingDashboard() {
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div className="bg-white p-6 rounded-lg shadow-lg">
-                        <h2 className="text-lg font-semibold mb-4 text-custom-purple-dark">Boarding-wise Power (W)</h2>
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                        <h2 className="text-lg font-semibold mb-4 text-slate-800">Boarding-wise Power (W)</h2>
                         <Bar data={powerBarData} />
                     </div>
-                    <div className="bg-white p-6 rounded-lg shadow-lg flex flex-col items-center">
-                        <h2 className="text-lg font-semibold mb-4 text-custom-purple-dark">Current Distribution (A)</h2>
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center">
+                        <h2 className="text-lg font-semibold mb-4 text-slate-800">Current Distribution (A)</h2>
                         <div style={{ width: '200px', height: '200px' }}>
                             <Doughnut data={currentDistributionData} />
                         </div>
                     </div>
                 </div>
 
-                <div className="bg-white p-6 rounded-lg shadow-lg">
-                    <h2 className="text-lg font-semibold mb-4 text-custom-purple-dark">Boarding Details</h2>
+                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                    <h2 className="text-lg font-semibold mb-4 text-slate-800">Boarding Details</h2>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         {BOARDINGS.map(boarding => (
-                            <div key={boarding.id} className={`p-4 rounded-lg ${boarding.bgColor} border ${boarding.borderColor}`}>
-                                <div className="flex items-center justify-between">
-                                    <span className="text-lg">{boarding.icon}</span>
+                            <div key={boarding.id} className={`p-5 rounded-xl ${boarding.bgColor} border ${boarding.borderColor}`}>
+                                <div className="flex items-center justify-between border-b pb-3 mb-3 border-black/5">
+                                    <span className="text-xl">{boarding.icon}</span>
                                     <span className={`font-bold ${boarding.textColor}`}>{boarding.name}</span>
                                 </div>
-                                <div className="mt-4 space-y-2 text-sm">
-                                    <div className="flex justify-between">
+                                <div className="space-y-2 text-sm text-slate-700">
+                                    <div className="flex justify-between font-medium">
                                         <span>Voltage:</span>
                                         <span>{formatNumber(latestData?.volt)} V</span>
                                     </div>
-                                    <div className="flex justify-between">
+                                    <div className="flex justify-between font-medium">
                                         <span>Current:</span>
                                         <span>{formatNumber(latestData?.[`current${boarding.id}`])} A</span>
                                     </div>
-                                    <div className="flex justify-between">
+                                    <div className="flex justify-between font-medium">
                                         <span>Power:</span>
                                         <span>{formatNumber(latestData?.[`power${boarding.id}`])} W</span>
                                     </div>
-                                    <div className="flex justify-between">
+                                    <div className="flex justify-between font-medium">
                                         <span>Temperature:</span>
                                         <span>{formatNumber(latestData?.temperature)} °C</span>
                                     </div>
-                                    <div className="flex justify-between">
+                                    <div className="flex justify-between font-medium">
                                         <span>Humidity:</span>
                                         <span>{formatNumber(latestData?.humidity)} %</span>
                                     </div>
@@ -292,12 +299,11 @@ export default function BoardingDashboard() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="bg-white p-6 rounded-lg shadow-lg">
-                        <h2 className="text-lg font-semibold mb-4 text-custom-purple-dark">Alerts</h2>
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                        <h2 className="text-lg font-semibold mb-4 text-slate-800">Alerts</h2>
                         <SensorAlerts sensorData={latestData || null} />
                     </div>
-                    <div className="bg-white p-6 rounded-lg shadow-lg">
-                        <h2 className="text-lg font-semibold mb-4 text-custom-purple-dark">Reporting</h2>
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
                         <ReportGenerator sensorData={sensorData || []} />
                     </div>
                 </div>
